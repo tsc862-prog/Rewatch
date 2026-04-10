@@ -213,6 +213,226 @@ async function importTitleFights(e) {
   showToast(`Title fights updated: ${updated}, skipped: ${skipped}`);
 }
 
+// ── Ratings CSV import ────────────────────────────────────────────────────────
+
+function parseCsvLine(line) {
+  const result = [];
+  let inQuote = false, current = '';
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === '"') {
+      if (inQuote && line[i + 1] === '"') { current += '"'; i++; } // escaped ""
+      else inQuote = !inQuote;
+    } else if (ch === ',' && !inQuote) {
+      result.push(current); current = '';
+    } else {
+      current += ch;
+    }
+  }
+  result.push(current);
+  return result;
+}
+
+function parseRatingsFile(text) {
+  const lines = text.replace(/\r/g, '').split('\n');
+  const headers = parseCsvLine(lines[0]).map(h => h.trim());
+  return lines.slice(1).map(line => {
+    if (!line.trim()) return null;
+    const vals = parseCsvLine(line);
+    const row = {};
+    headers.forEach((h, i) => { row[h] = (vals[i] || '').trim(); });
+    return row;
+  }).filter(r => r && r.Event && r.Winner && r.Loser);
+}
+
+function csvMapWeightClass(w) {
+  if (!w) return null;
+  if (w.startsWith("Women's")) return w;
+  return w.replace("Men's ", "");
+}
+
+function csvMapPosType(p) {
+  const l = p.toLowerCase();
+  if (l.includes('main event')) return 'Main Event';
+  if (l.includes('main card')) return 'Main Card';
+  return 'Prelim';
+}
+
+function csvMapMethod(finish) {
+  if (!finish) return null;
+  const f = finish.toLowerCase();
+  if (f === 'unanimous decision') return 'Decision (Unanimous)';
+  if (f === 'split decision')    return 'Decision (Split)';
+  if (f === 'majority decision') return 'Decision (Majority)';
+  if (f === 'majority draw')     return 'Majority Draw';
+  if (f === 'no contest')        return 'No Contest';
+  return finish;
+}
+
+function csvMapMethodBroad(finish) {
+  if (!finish) return null;
+  const f = finish.toLowerCase();
+  if (f.includes('ko') || f.includes('tko')) return 'KO/TKO';
+  if (f.includes('submission'))              return 'Submission';
+  if (f.includes('draw'))                    return 'Draw';
+  if (f.includes('decision'))                return 'Decision';
+  if (f.includes('no contest') || f.includes('dq')) return 'No Contest';
+  return null;
+}
+
+function csvExtractRanks(notes, f1Name, f2Name) {
+  if (!notes) return { f1Rank: null, f2Rank: null };
+  const found = {};
+  const re = /(\w+)\s+#([A-Z0-9]+)/gi;
+  let m;
+  while ((m = re.exec(notes)) !== null) found[m[1].toLowerCase()] = m[2].toUpperCase();
+  if (!Object.keys(found).length) return { f1Rank: null, f2Rank: null };
+
+  const f1Last = f1Name.split(' ').pop().toLowerCase();
+  const f2Last = f2Name.split(' ').pop().toLowerCase();
+  let f1Rank = null, f2Rank = null;
+
+  for (const [name, rank] of Object.entries(found)) {
+    // Match on last name — tolerant of minor typos via 4-char prefix
+    if (f1Last === name || f1Last.startsWith(name) || name.startsWith(f1Last.slice(0, 4))) {
+      f1Rank = rank;
+    } else if (f2Last === name || f2Last.startsWith(name) || name.startsWith(f2Last.slice(0, 4))) {
+      f2Rank = rank;
+    }
+  }
+  return { f1Rank, f2Rank };
+}
+
+async function csvFindFight(eventId, f1Id, f2Id) {
+  let { data } = await sb.from('fights').select('id')
+    .eq('event_id', eventId).eq('fighter1_id', f1Id).eq('fighter2_id', f2Id)
+    .maybeSingle();
+  if (data?.id) return data.id;
+  ({ data } = await sb.from('fights').select('id')
+    .eq('event_id', eventId).eq('fighter1_id', f2Id).eq('fighter2_id', f1Id)
+    .maybeSingle());
+  return data?.id || null;
+}
+
+async function importRatingsCSV(e) {
+  const file = e.target.files[0];
+  e.target.value = '';
+  if (!file) return;
+
+  let text;
+  try { text = await file.text(); } catch (err) { showToast('Could not read file'); return; }
+
+  const rows = parseRatingsFile(text);
+  if (!rows.length) { showToast('No valid rows found'); return; }
+
+  const prog = document.getElementById('progress');
+  const fill = document.getElementById('progress-fill');
+  prog.style.display = 'block';
+  fill.style.width = '5%';
+  setStatus('Syncing events…');
+
+  // ── Pass 1: upsert events ─────────────────────────────────────────────────
+  const uniqueEvents = [...new Set(rows.map(r => r.Event))];
+  await sb.from('events').upsert(
+    uniqueEvents.map(name => ({ name })),
+    { onConflict: 'name', ignoreDuplicates: true }
+  );
+  const { data: allEvents } = await sb.from('events').select('id, name').limit(5000);
+  const eventIdMap = Object.fromEntries((allEvents || []).map(ev => [ev.name.toLowerCase(), ev.id]));
+
+  // ── Pass 2: upsert fighters ───────────────────────────────────────────────
+  fill.style.width = '15%';
+  setStatus('Syncing fighters…');
+  const uniqueFighters = [...new Set(rows.flatMap(r => [r.Winner, r.Loser]))];
+  await sb.from('fighters').upsert(
+    uniqueFighters.map(name => ({ name })),
+    { onConflict: 'name', ignoreDuplicates: true }
+  );
+  const { data: allFighters } = await sb.from('fighters').select('id, name').limit(10000);
+  const fighterIdMap = Object.fromEntries((allFighters || []).map(f => [f.name.toLowerCase(), f.id]));
+
+  // ── Pass 3: fights / results / ratings ────────────────────────────────────
+  fill.style.width = '20%';
+  setStatus('Importing fights…');
+
+  let done = 0, skipped = 0;
+  const total = rows.length;
+
+  for (const row of rows) {
+    const eventId    = eventIdMap[row.Event.toLowerCase()];
+    const f1Id       = fighterIdMap[row.Winner.toLowerCase()];
+    const f2Id       = fighterIdMap[row.Loser.toLowerCase()];
+    if (!eventId || !f1Id || !f2Id) { skipped++; continue; }
+
+    // Find or create fight
+    let fightId = await csvFindFight(eventId, f1Id, f2Id);
+    const posType    = csvMapPosType(row.Placement);
+    const { f1Rank, f2Rank } = csvExtractRanks(row.Notes || '', row.Winner, row.Loser);
+
+    if (!fightId) {
+      const { data: maxPos } = await sb.from('fights')
+        .select('fight_position').eq('event_id', eventId)
+        .order('fight_position', { ascending: false, nullsFirst: false }).limit(1);
+      const nextPos = (maxPos?.length && maxPos[0].fight_position != null) ? maxPos[0].fight_position + 1 : 1;
+      const newId = 'f-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6);
+      const { error } = await sb.from('fights').insert({
+        id: newId, event_id: eventId,
+        fighter1_id: f1Id, fighter2_id: f2Id,
+        weight_class: csvMapWeightClass(row.Weight),
+        fight_position_type: posType,
+        fight_position: nextPos,
+        is_title: row['Title?'] === 'TRUE',
+        is_main: posType === 'Main Event',
+        fighter1_rank: f1Rank, fighter2_rank: f2Rank
+      });
+      if (error) { skipped++; continue; }
+      fightId = newId;
+    } else if (f1Rank || f2Rank) {
+      // Update rankings on existing fight
+      const upd = {};
+      if (f1Rank) upd.fighter1_rank = f1Rank;
+      if (f2Rank) upd.fighter2_rank = f2Rank;
+      await sb.from('fights').update(upd).eq('id', fightId);
+    }
+
+    // Upsert fight result (winner = Winner column = f1)
+    await sb.from('fight_results').upsert({
+      fight_id: fightId, winner_id: f1Id,
+      method: csvMapMethod(row.Finish),
+      method_broad: csvMapMethodBroad(row.Finish),
+      round: parseInt(row.Round) || null,
+      time: row.Time || null
+    }, { onConflict: 'fight_id' });
+
+    // Upsert rating
+    const ratingVal = parseFloat(row.Rating);
+    if (!isNaN(ratingVal) && ratingVal > 0) {
+      const { data: existing } = await sb.from('ratings').select('fight_id')
+        .eq('fight_id', fightId).maybeSingle();
+      if (existing?.fight_id) {
+        await sb.from('ratings').update({
+          rating: ratingVal, notes: row.Notes || null, logged_at: Date.now()
+        }).eq('fight_id', fightId);
+      } else {
+        await sb.from('ratings').insert({
+          fight_id: fightId, rating: ratingVal, notes: row.Notes || null, logged_at: Date.now()
+        });
+      }
+    }
+
+    done++;
+    fill.style.width = (20 + Math.round(done / total * 78)) + '%';
+    if (done % 25 === 0) setStatus(`Importing… ${done} / ${total}`);
+  }
+
+  fill.style.width = '100%';
+  setStatus(`✓ Imported ${done} rows${skipped ? ' (' + skipped + ' skipped)' : ''}`);
+  setTimeout(() => { prog.style.display = 'none'; fill.style.width = '0%'; }, 1000);
+  showToast(`Imported ${done} fights${skipped ? ', ' + skipped + ' skipped' : ''}`);
+  await loadRatings();
+  renderTable();
+}
+
 function showImportErr(msg) {
   document.getElementById('db-err').textContent = msg;
   document.getElementById('db-err').style.display = 'block';

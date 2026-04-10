@@ -129,18 +129,28 @@ tr:hover td{background:#fdfcfa}
 .fight-row-wc{color:#888;font-weight:500}
 .fight-row-matchup{font-size:15px;font-weight:600;color:#1c1c1a;margin-bottom:10px}
 .rank-tag{display:inline-block;background:#E0E7FF;color:#3730A3;font-size:10px;font-weight:700;padding:1px 5px;border-radius:10px;margin-right:2px;vertical-align:middle}
+.fight-row-event-meta{font-size:12px;color:#888;margin-bottom:6px}
 .fight-row-notes-info{font-size:11px;color:#78716C;margin-bottom:8px;font-style:italic}
 .fight-row-bottom{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
 .fight-row-controls{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .fight-row-stars{display:flex;gap:2px;cursor:pointer;user-select:none}
 .fight-star{display:inline-flex;cursor:pointer}
 .fight-row-rating-lbl{font-size:12px;color:#888;min-width:28px}
-.fight-row-notes{flex:1;min-width:120px;padding:6px 10px;border:1px solid #e5e3dc;border-radius:6px;font-size:12px;background:white;color:#1c1c1a;outline:none;font-family:inherit}
-.fight-row-notes:focus{border-color:#E24B4A}
+.fight-row-notes{display:block;width:100%;margin-top:10px;padding:8px 10px;border:1px solid #e5e3dc;border-radius:6px;font-size:13px;background:white;color:#1c1c1a;outline:none;font-family:inherit;resize:vertical;min-height:40px}
+.fight-row-notes:focus{border-color:#E24B4A;box-shadow:0 0 0 3px rgba(226,75,74,0.1)}
 .fight-row-result{padding:8px 12px;border-radius:8px;font-size:12px;color:#555;display:flex;gap:12px;flex-wrap:wrap;white-space:nowrap}
 .fight-row-result.revealed{background:#f0faf0}
 .fight-row-result.spoiler{background:#f5f5f4;color:#bbb;font-style:italic}
 .rated-check{color:#3B6D11;font-size:11px;font-weight:500}
+.fight-edit-btn{font-size:11px;padding:3px 9px}
+.fight-row-edit-panel{border-top:1px solid #e5e3dc;margin-top:14px;padding-top:14px}
+.fight-edit-section{display:flex;flex-direction:column;gap:8px}
+.fight-edit-row{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end}
+.fight-edit-field{display:flex;flex-direction:column;gap:3px;flex:1;min-width:120px}
+.fight-edit-field--narrow{flex:0 0 65px;min-width:unset}
+.fight-edit-field label{font-size:11px;font-weight:500;color:#888}
+.fight-edit-checkbox{font-size:12px;display:flex;align-items:center;gap:4px;padding-bottom:5px;white-space:nowrap;cursor:pointer}
+.fight-edit-divider{font-size:11px;font-weight:600;color:#999;text-transform:uppercase;letter-spacing:0.5px;padding-top:8px;border-top:1px dashed #e5e3dc;margin-top:4px}
 
 @media(max-width:700px){
   .grid-4{grid-template-columns:1fr 1fr}
@@ -148,5 +158,4 @@ tr:hover td{background:#fdfcfa}
   .nav-btn{padding:7px 12px;font-size:12px}
   .fight-row-bottom{flex-direction:column;align-items:flex-start}
   .fight-row-controls{flex-direction:column;align-items:flex-start}
-  .fight-row-notes{width:100%}
 }

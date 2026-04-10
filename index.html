@@ -17,6 +17,7 @@
     </div>
     <nav class="nav">
       <button class="nav-btn active" onclick="showView('log',event)">Rate event</button>
+      <button class="nav-btn" onclick="showView('fighter',event)">Fighter</button>
       <button class="nav-btn" onclick="showView('fights',event)">My ratings</button>
       <button class="nav-btn" onclick="showView('dashboard',event)">Dashboard</button>
       <button class="nav-btn" onclick="showView('admin',event)">Admin</button>
@@ -34,6 +35,8 @@
         <input type="file" id="db-input" accept=".json" style="display:none" onchange="importDB(event)">
         <button class="btn btn-outline btn-sm" onclick="document.getElementById('title-input').click()">Import title fights</button>
         <input type="file" id="title-input" accept=".csv" style="display:none" onchange="importTitleFights(event)">
+        <button class="btn btn-outline btn-sm" onclick="document.getElementById('ratings-csv-input').click()">Import ratings CSV</button>
+        <input type="file" id="ratings-csv-input" accept=".csv" style="display:none" onchange="importRatingsCSV(event)">
       </div>
     </div>
     <div class="progress" id="progress"><div class="progress-fill" id="progress-fill"></div></div>
@@ -59,6 +62,20 @@
 
     <!-- Event Card (shown after selecting an event) -->
     <div id="event-card" style="display:none"></div>
+  </div>
+
+  <!-- FIGHTER VIEW -->
+  <div id="view-fighter" class="view">
+    <div id="fighter-search-card" class="card">
+      <p class="section-head">Find a fighter</p>
+      <div class="form-group">
+        <label>Search by fighter name</label>
+        <input type="text" id="fighter-page-search" placeholder="e.g. Jon Jones, Conor McGregor…" autocomplete="off"
+          oninput="fighterPageSearch()" onkeydown="fighterPageSearchKey(event)" onblur="fighterPageBlur()">
+        <div class="ac-dropdown" id="fighter-page-ac" style="display:none"></div>
+      </div>
+    </div>
+    <div id="fighter-card" style="display:none"></div>
   </div>
 
   <!-- FIGHTS VIEW -->
@@ -257,6 +274,7 @@
 <script src="js/supabase.js"></script>
 <script src="js/seed.js"></script>
 <script src="js/events.js"></script>
+<script src="js/fighter.js"></script>
 <script src="js/ratings.js"></script>
 <script src="js/views.js"></script>
 <script src="js/admin.js"></script>

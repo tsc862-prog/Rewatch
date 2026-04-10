@@ -6,6 +6,8 @@ let currentEvent = null;
 let currentEventFights = [];
 let eventFightRatings = new Map(); // fightId → { rating }
 let savingFights = new Set(); // prevent double-saves
+const epFighterIds = new Map(); // fightId → { f1Id, f1Name, f2Id, f2Name }
+const epFighterTimers = {};
 
 // ── Event Autocomplete ───────────────────────────────────────────────────────
 
@@ -105,7 +107,8 @@ function renderEventCard() {
   document.getElementById('event-search-card').style.display = 'none';
 }
 
-function renderFightRow(fight) {
+function renderFightRow(fight, opts) {
+  opts = opts || {};
   const rating = myRatings.find(r => r.fight_id === fight.id);
   const isRated = !!rating;
   const currentVal = isRated ? (rating.rating || 0) : 0;
@@ -129,20 +132,252 @@ function renderFightRow(fight) {
           ${fight.is_title ? '<span class="title-tag">TITLE BOUT</span> · ' : ''}
           <span class="fight-row-wc">${escHtml(fight.weight_class || '—')}</span>
         </div>
+        <div style="display:flex;align-items:center;gap:8px">
         ${isRated ? '<span class="rated-check">✓ rated</span>' : ''}
+        <button class="btn btn-outline btn-sm fight-edit-btn" onclick="toggleFightEdit('${fight.id}')">Edit</button>
+      </div>
       </div>
       <div class="fight-row-matchup">${fight.fighter1_rank ? '<span class="rank-tag">#'+escHtml(fight.fighter1_rank)+'</span> ' : ''}${escHtml(fight.fighter1_name)} vs ${fight.fighter2_rank ? '<span class="rank-tag">#'+escHtml(fight.fighter2_rank)+'</span> ' : ''}${escHtml(fight.fighter2_name)}</div>
+      ${opts.showEvent && fight.event_name ? '<div class="fight-row-event-meta">'+escHtml(fight.event_name)+(fight.event_date?' · '+fight.event_date:'')+'</div>' : ''}
       ${fight.notes ? '<div class="fight-row-notes-info">'+escHtml(fight.notes)+'</div>' : ''}
       <div class="fight-row-bottom">
         <div class="fight-row-controls">
           <div class="fight-row-stars" id="stars-${fight.id}">${buildClickableStars(fight.id, currentVal)}</div>
           <span class="fight-row-rating-lbl" id="star-lbl-${fight.id}">${currentVal ? currentVal+'/5' : '—'}</span>
-          <input type="text" class="fight-row-notes" id="notes-${fight.id}" placeholder="Notes…" value="${escHtml(notes)}"
-            onblur="saveNotes('${fight.id}')">
         </div>
         <div id="result-${fight.id}">${resultHtml}</div>
       </div>
+      <textarea class="fight-row-notes" id="notes-${fight.id}" placeholder="Notes…"
+        onblur="saveNotes('${fight.id}')">${escHtml(notes)}</textarea>
+      <div class="fight-row-edit-panel" id="edit-panel-${fight.id}" style="display:none">${buildFightEditPanel(fight)}</div>
     </div>`;
+}
+
+// ── Inline Fight Edit ────────────────────────────────────────────────────────
+
+function buildFightEditPanel(fight) {
+  // Initialise fighter state with current values so save works without changing anything
+  epFighterIds.set(fight.id, {
+    f1Id: fight.fighter1_id, f1Name: fight.fighter1_name || '',
+    f2Id: fight.fighter2_id, f2Name: fight.fighter2_name || ''
+  });
+
+  const wcOptions = ['','Strawweight','Flyweight','Bantamweight','Featherweight','Lightweight','Welterweight','Middleweight','Light Heavyweight','Heavyweight',
+    "Women's Strawweight","Women's Flyweight","Women's Bantamweight","Women's Featherweight"]
+    .map(w => `<option value="${w}"${w===(fight.weight_class||'')?' selected':''}>${w||'—'}</option>`).join('');
+
+  const ptOptions = ['','Main Event','Main Card','Prelim']
+    .map(p => `<option value="${p}"${p===(fight.fight_position_type||'')?' selected':''}>${p||'—'}</option>`).join('');
+
+  const wid = fight.winner_id || '';
+
+  return `
+    <div class="fight-edit-section">
+      <div class="fight-edit-row">
+        <div class="fight-edit-field" style="position:relative">
+          <label>Fighter 1</label>
+          <input type="text" id="ep-f1-${fight.id}" class="admin-input" value="${escHtml(fight.fighter1_name||'')}" autocomplete="off"
+            oninput="epFighterSearch('${fight.id}','f1')"
+            onblur="setTimeout(()=>{const el=document.getElementById('ep-f1-ac-${fight.id}');if(el)el.style.display='none'},150)">
+          <div class="ac-dropdown" id="ep-f1-ac-${fight.id}" style="display:none"></div>
+        </div>
+        <div class="fight-edit-field" style="position:relative">
+          <label>Fighter 2</label>
+          <input type="text" id="ep-f2-${fight.id}" class="admin-input" value="${escHtml(fight.fighter2_name||'')}" autocomplete="off"
+            oninput="epFighterSearch('${fight.id}','f2')"
+            onblur="setTimeout(()=>{const el=document.getElementById('ep-f2-ac-${fight.id}');if(el)el.style.display='none'},150)">
+          <div class="ac-dropdown" id="ep-f2-ac-${fight.id}" style="display:none"></div>
+        </div>
+      </div>
+      <div class="fight-edit-row">
+        <div class="fight-edit-field">
+          <label>Division</label>
+          <select id="ep-wc-${fight.id}" class="admin-input">${wcOptions}</select>
+        </div>
+        <div class="fight-edit-field">
+          <label>Card position</label>
+          <select id="ep-pt-${fight.id}" class="admin-input">${ptOptions}</select>
+        </div>
+        <div class="fight-edit-field fight-edit-field--narrow">
+          <label>F1 rank</label>
+          <input type="text" id="ep-f1r-${fight.id}" class="admin-input" value="${escHtml(fight.fighter1_rank||'')}" placeholder="C, 1…">
+        </div>
+        <div class="fight-edit-field fight-edit-field--narrow">
+          <label>F2 rank</label>
+          <input type="text" id="ep-f2r-${fight.id}" class="admin-input" value="${escHtml(fight.fighter2_rank||'')}" placeholder="C, 1…">
+        </div>
+        <label class="fight-edit-checkbox"><input type="checkbox" id="ep-title-${fight.id}" ${fight.is_title?'checked':''}> Title bout</label>
+      </div>
+      <div class="fight-edit-row">
+        <div class="fight-edit-field" style="flex:2">
+          <label>Fight notes</label>
+          <input type="text" id="ep-notes-${fight.id}" class="admin-input" value="${escHtml(fight.notes||'')}" placeholder="Catchweight, missed weight…">
+        </div>
+      </div>
+      <div class="fight-edit-divider">Result</div>
+      <div class="fight-edit-row">
+        <div class="fight-edit-field">
+          <label>Winner</label>
+          <select id="ep-winner-${fight.id}" class="admin-input">
+            <option value="">Draw / NC</option>
+            <option value="${fight.fighter1_id}" ${wid===fight.fighter1_id?'selected':''}>${escHtml(fight.fighter1_name||'')}</option>
+            <option value="${fight.fighter2_id}" ${wid===fight.fighter2_id?'selected':''}>${escHtml(fight.fighter2_name||'')}</option>
+          </select>
+        </div>
+        <div class="fight-edit-field" style="flex:2">
+          <label>Method</label>
+          <input type="text" id="ep-method-${fight.id}" class="admin-input" value="${escHtml(fight.method||'')}" placeholder="KO/TKO, Decision (Unanimous)…">
+        </div>
+        <div class="fight-edit-field">
+          <label>Type</label>
+          <select id="ep-mbroad-${fight.id}" class="admin-input">
+            <option value="">—</option>
+            <option ${fight.method_broad==='KO/TKO'?'selected':''}>KO/TKO</option>
+            <option ${fight.method_broad==='Submission'?'selected':''}>Submission</option>
+            <option ${fight.method_broad==='Decision'?'selected':''}>Decision</option>
+            <option ${fight.method_broad==='No Contest'?'selected':''}>No Contest</option>
+            <option ${fight.method_broad==='Draw'?'selected':''}>Draw</option>
+          </select>
+        </div>
+        <div class="fight-edit-field fight-edit-field--narrow">
+          <label>Round</label>
+          <input type="number" id="ep-round-${fight.id}" class="admin-input" min="1" max="5" value="${fight.round||''}">
+        </div>
+        <div class="fight-edit-field fight-edit-field--narrow">
+          <label>Time</label>
+          <input type="text" id="ep-time-${fight.id}" class="admin-input" value="${escHtml(fight.time||'')}" placeholder="4:35">
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:10px;align-items:center">
+        <button class="btn btn-red btn-sm" onclick="saveFightEdit('${fight.id}')">Save</button>
+        <button class="btn btn-outline btn-sm" onclick="toggleFightEdit('${fight.id}')">Cancel</button>
+        <button class="btn-danger" style="margin-left:auto" onclick="deleteFightFromCard('${fight.id}')">Delete fight</button>
+      </div>
+    </div>`;
+}
+
+function epFighterSearch(fightId, which) {
+  const key = fightId + which;
+  clearTimeout(epFighterTimers[key]);
+  epFighterTimers[key] = setTimeout(() => doEpFighterSearch(fightId, which), 300);
+}
+
+async function doEpFighterSearch(fightId, which) {
+  const input = document.getElementById('ep-' + which + '-' + fightId);
+  const ac = document.getElementById('ep-' + which + '-ac-' + fightId);
+  if (!input || !ac) return;
+  const q = input.value.trim();
+  if (q.length < 2) { ac.style.display = 'none'; return; }
+
+  const { data } = await sb.from('fighters').select('id, name')
+    .ilike('name', `%${q}%`).order('name').limit(8);
+  if (!data?.length) { ac.style.display = 'none'; return; }
+
+  const ql = q.toLowerCase();
+  ac.innerHTML = data.map(f =>
+    `<div class="ac-item" onmousedown="epPickFighter('${fightId}','${which}','${f.id}','${escHtml(f.name)}')">${hl(f.name, ql)}</div>`
+  ).join('');
+  ac.style.display = 'block';
+}
+
+function epPickFighter(fightId, which, id, name) {
+  const state = epFighterIds.get(fightId) || {};
+  if (which === 'f1') { state.f1Id = id; state.f1Name = name; }
+  else               { state.f2Id = id; state.f2Name = name; }
+  epFighterIds.set(fightId, state);
+
+  const input = document.getElementById('ep-' + which + '-' + fightId);
+  const ac    = document.getElementById('ep-' + which + '-ac-' + fightId);
+  if (input) input.value = name;
+  if (ac) ac.style.display = 'none';
+
+  // Keep winner dropdown in sync with updated fighter names/IDs
+  const winnerSel = document.getElementById('ep-winner-' + fightId);
+  if (winnerSel) {
+    const f1Id   = state.f1Id   || '';
+    const f2Id   = state.f2Id   || '';
+    const f1Name = state.f1Name || '';
+    const f2Name = state.f2Name || '';
+    const cur    = winnerSel.value;
+    winnerSel.innerHTML =
+      `<option value="">Draw / NC</option>` +
+      `<option value="${f1Id}"${cur===f1Id?' selected':''}>${escHtml(f1Name)}</option>` +
+      `<option value="${f2Id}"${cur===f2Id?' selected':''}>${escHtml(f2Name)}</option>`;
+  }
+}
+
+function toggleFightEdit(fightId) {
+  const panel = document.getElementById('edit-panel-' + fightId);
+  if (!panel) return;
+  panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+}
+
+async function saveFightEdit(fightId) {
+  let wc = document.getElementById('ep-wc-' + fightId).value || null;
+  const posType = document.getElementById('ep-pt-' + fightId).value || null;
+  const isTitle = document.getElementById('ep-title-' + fightId).checked;
+  const isMain = posType === 'Main Event';
+  const f1Rank = document.getElementById('ep-f1r-' + fightId).value.trim() || null;
+  const f2Rank = document.getElementById('ep-f2r-' + fightId).value.trim() || null;
+  const fightNotes = document.getElementById('ep-notes-' + fightId).value.trim() || null;
+
+  const epState = epFighterIds.get(fightId) || {};
+  const fightUpdate = {
+    weight_class: wc, fight_position_type: posType,
+    is_main: isMain, is_title: isTitle,
+    fighter1_rank: f1Rank, fighter2_rank: f2Rank, notes: fightNotes
+  };
+  if (epState.f1Id) fightUpdate.fighter1_id = epState.f1Id;
+  if (epState.f2Id) fightUpdate.fighter2_id = epState.f2Id;
+
+  const { error: fightError } = await sb.from('fights').update(fightUpdate).eq('id', fightId);
+  if (fightError) { showToast('Error saving fight: ' + fightError.message); return; }
+
+  const winnerId = document.getElementById('ep-winner-' + fightId).value || null;
+  const method = document.getElementById('ep-method-' + fightId).value.trim() || null;
+  const methodBroad = document.getElementById('ep-mbroad-' + fightId).value || null;
+  const round = parseInt(document.getElementById('ep-round-' + fightId).value) || null;
+  const time = document.getElementById('ep-time-' + fightId).value.trim() || null;
+
+  const { error: resultError } = await sb.from('fight_results').upsert({
+    fight_id: fightId, winner_id: winnerId,
+    method, method_broad: methodBroad, round, time
+  }, { onConflict: 'fight_id' });
+  if (resultError) { showToast('Error saving result: ' + resultError.message); return; }
+
+  showToast('Fight updated');
+
+  if (currentFighter) {
+    await reloadFighterFights();
+  } else if (currentEvent) {
+    const { data } = await sb.from('fight_search').select('*').eq('event_id', currentEvent.id);
+    if (data) {
+      currentEventFights = data.sort((a, b) => {
+        const pa = a.fight_position != null ? a.fight_position : 9999;
+        const pb = b.fight_position != null ? b.fight_position : 9999;
+        return pa - pb;
+      });
+      renderEventCard();
+    }
+  }
+}
+
+async function deleteFightFromCard(fightId) {
+  if (!confirm('Delete this fight and its result? This cannot be undone.')) return;
+  await sb.from('fight_results').delete().eq('fight_id', fightId);
+  await sb.from('ratings').delete().eq('fight_id', fightId);
+  const { error } = await sb.from('fights').delete().eq('id', fightId);
+  if (error) { showToast('Error: ' + error.message); return; }
+
+  myRatings = myRatings.filter(r => r.fight_id !== fightId);
+  showToast('Fight deleted');
+  if (currentFighter) {
+    currentFighterFights = currentFighterFights.filter(f => f.id !== fightId);
+    renderFighterCard();
+  } else {
+    currentEventFights = currentEventFights.filter(f => f.id !== fightId);
+    renderEventCard();
+  }
 }
 
 function closeEvent() {
@@ -241,17 +476,21 @@ async function saveFightRating(fightId) {
 
   if (error) { showToast('Error: ' + error.message); return; }
 
-  // Update local cache
-  const fight = currentEventFights.find(f => f.id === fightId);
+  // Update local cache — find fight from whichever page is active
+  const inEventCtx = currentEventFights.some(f => f.id === fightId);
+  const fight = inEventCtx
+    ? currentEventFights.find(f => f.id === fightId)
+    : currentFighterFights.find(f => f.id === fightId);
   const fullEntry = { ...fight, ...entry };
   const idx = myRatings.findIndex(x => x.fight_id === fightId);
   if (idx >= 0) myRatings[idx] = fullEntry; else myRatings.unshift(fullEntry);
 
   // Re-render just this fight row to reveal result
   const row = document.getElementById('fight-row-' + fightId);
-  if (row) row.outerHTML = renderFightRow(fight);
+  if (row) row.outerHTML = renderFightRow(fight, inEventCtx ? {} : { showEvent: true });
 
-  updateEventProgress();
+  if (currentFighter) updateFighterProgress();
+  else updateEventProgress();
   showToast(existing ? 'Rating updated' : 'Fight rated!');
 }
 
