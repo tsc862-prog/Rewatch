@@ -63,7 +63,7 @@ async function selectFighterForPage(fighter) {
 
   if (error) { showToast('Error loading fights: ' + error.message); return; }
 
-  currentFighterFights = data || [];
+  currentFighterFights = sortFighterFights(data || []);
   renderFighterCard();
 }
 
@@ -76,7 +76,7 @@ function renderFighterCard() {
       <div class="event-header">
         <div>
           <div class="event-header-left">
-            <button class="btn btn-outline btn-sm" onclick="closeFighterCard()">← Back</button>
+            <button class="btn btn-outline btn-sm" onclick="closeFighterCard()">← ${navReturnContext && navReturnContext.type === 'event' ? escHtml(navReturnContext.data.name) : 'Back'}</button>
             <span class="event-title">${escHtml(currentFighter.name)}</span>
           </div>
           <div class="event-meta">
@@ -111,15 +111,33 @@ async function reloadFighterFights() {
     .or(`fighter1_id.eq.${currentFighter.id},fighter2_id.eq.${currentFighter.id}`)
     .order('event_date', { ascending: false });
   if (data) {
-    currentFighterFights = data;
+    currentFighterFights = sortFighterFights(data);
     renderFighterCard();
   }
 }
 
+function sortFighterFights(fights) {
+  return fights.slice().sort((a, b) => {
+    const da = a.event_date ? new Date(a.event_date).getTime() : 0;
+    const db = b.event_date ? new Date(b.event_date).getTime() : 0;
+    return db - da; // descending — most recent first
+  });
+}
+
 function closeFighterCard() {
+  if (navReturnContext && navReturnContext.type === 'event') {
+    const ctx = navReturnContext;
+    navReturnContext = null;
+    currentFighter = null;
+    currentFighterFights = [];
+    activateView('view-log', 'Rate event');
+    selectEvent(ctx.data);
+    return;
+  }
   document.getElementById('fighter-card').style.display = 'none';
   document.getElementById('fighter-search-card').style.display = 'block';
   document.getElementById('fighter-page-search').value = '';
   currentFighter = null;
   currentFighterFights = [];
+  navReturnContext = null;
 }

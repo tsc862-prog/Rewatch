@@ -1,3 +1,41 @@
+// ── Dark Mode ────────────────────────────────────────────────────────────────
+(function() {
+  if (localStorage.getItem('darkMode') === 'true') {
+    document.body.classList.add('dark');
+  }
+  document.documentElement.classList.remove('dark-pending');
+})();
+
+function toggleDarkMode() {
+  const isDark = document.body.classList.toggle('dark');
+  localStorage.setItem('darkMode', isDark);
+}
+
+// ── Navigation helpers ────────────────────────────────────────────────────────
+
+let navReturnContext = null; // { type: 'event'|'fighter', data: obj }
+
+function activateView(viewId, navLabel) {
+  document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
+  document.getElementById(viewId).classList.add('active');
+  document.querySelectorAll('.nav-btn').forEach(btn => { if (btn.textContent.trim() === navLabel) btn.classList.add('active'); });
+}
+
+function navToFighter(id, name) {
+  navReturnContext = currentEvent ? { type: 'event', data: currentEvent } : null;
+  activateView('view-fighter', 'Fighter');
+  selectFighterForPage({ id, name });
+}
+
+async function navToEvent(eventId) {
+  navReturnContext = currentFighter ? { type: 'fighter', data: currentFighter } : null;
+  const { data } = await sb.from('events').select('*').eq('id', eventId).single();
+  if (!data) return;
+  activateView('view-log', 'Rate event');
+  selectEvent(data);
+}
+
 // ── Shared state ──────────────────────────────────────────────────────────────
 let myRatings = [];
 let selectedFight = null;
@@ -25,6 +63,7 @@ async function tryLoadDB() {
 }
 
 // ── Shared Helpers ────────────────────────────────────────────────────────────
+
 function hl(name, q) {
   if (!name) return '';
   const i = name.toLowerCase().indexOf(q);

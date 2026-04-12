@@ -1,26 +1,178 @@
 // ── Event Search + Card ───────────────────────────────────────────────────────
 
+
 let eventAcIdx = -1, eventAcResults = [];
+let recentEventsList = [];
+let recentEventsPage = 0;
+const RECENT_EVENTS_PAGE_SIZE = 10;
+
+// ── Recent Events List ───────────────────────────────────────────────────────
+
+// Cached data for the recent events list (populated once on load)
+let recentEventsUrlCount = {}; // event_id → count of fights with paramount_url
+let upcomingEventsList = [];
+
+async function loadRecentEvents() {
+  const el = document.getElementById('recent-events');
+  if (!el) return;
+
+  // Fetch all event IDs that have at least one result, plus fight-level URL counts
+  const { data: fightRows } = await sb
+    .from('fight_search')
+    .select('event_id,paramount_url')
+    .not('method', 'is', null)
+    .limit(10000);
+
+  if (!fightRows?.length) { el.style.display = 'none'; return; }
+
+  const idsWithResults = new Set(fightRows.map(f => f.event_id).filter(Boolean));
+
+  // Count fights with a paramount_url per event
+  recentEventsUrlCount = {};
+  fightRows.forEach(f => {
+    if (f.event_id && f.paramount_url) recentEventsUrlCount[f.event_id] = (recentEventsUrlCount[f.event_id] || 0) + 1;
+  });
+
+  // Fetch all events then sort client-side — avoids relying on DB text-date ordering
+  const { data: allEvents } = await sb.from('events').select('*').limit(5000);
+  if (!allEvents?.length) { el.style.display = 'none'; return; }
+
+  const startOfToday = new Date(); startOfToday.setHours(0,0,0,0);
+  const todayTs = startOfToday.getTime();
+
+  recentEventsList = allEvents
+    .filter(e => idsWithResults.has(e.id))
+    .sort((a, b) => {
+      const da = a.date ? new Date(a.date).getTime() : 0;
+      const db = b.date ? new Date(b.date).getTime() : 0;
+      return db - da;
+    });
+
+  upcomingEventsList = allEvents
+    .filter(e => {
+      if (!e.date) return false;
+      const d = new Date(e.date).getTime();
+      return d >= todayTs;
+    })
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+  recentEventsPage = 0;
+  renderUpcomingEvents();
+  renderRecentEventsList();
+}
+
+function renderUpcomingEvents() {
+  const el = document.getElementById('upcoming-events');
+  if (!el) return;
+  if (!upcomingEventsList.length) { el.style.display = 'none'; return; }
+
+  const todayTs = new Date().setHours(0,0,0,0);
+
+  el.innerHTML = `
+    <div class="upcoming-events-label">Upcoming</div>
+    ${upcomingEventsList.map((evt, i) => {
+      const isToday = new Date(evt.date).setHours(0,0,0,0) === todayTs;
+      const urlCount = recentEventsUrlCount[evt.id] || 0;
+      return `
+        <div class="upcoming-event-row${isToday ? ' today' : ''}" onclick="selectEvent(upcomingEventsList[${i}])">
+          <div class="upcoming-event-date-block">
+            <div class="upcoming-event-month">${isToday ? 'TODAY' : formatUpcomingMonth(evt.date)}</div>
+            <div class="upcoming-event-day">${isToday ? '★' : formatUpcomingDay(evt.date)}</div>
+          </div>
+          <div class="upcoming-event-info">
+            <div class="upcoming-event-name">${escHtml(evt.name)}</div>
+            ${evt.location ? `<div class="upcoming-event-meta">${escHtml(evt.location)}</div>` : ''}
+            ${evt.paramount_url || urlCount ? `<div class="upcoming-event-links">
+              ${evt.paramount_url ? `<a class="recent-event-p" href="${escHtml(evt.paramount_url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">▶ Full event</a>` : ''}
+              ${urlCount ? `<span class="recent-event-p-count">▶ ${urlCount} fight${urlCount !== 1 ? 's' : ''}</span>` : ''}
+            </div>` : ''}
+          </div>
+          <span class="recent-event-chevron">›</span>
+        </div>`;
+    }).join('')}`;
+  el.style.display = 'block';
+}
+
+function formatUpcomingMonth(dateStr) {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  return isNaN(d) ? '' : d.toLocaleString('en-US', { month: 'short' }).toUpperCase();
+}
+
+function formatUpcomingDay(dateStr) {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  return isNaN(d) ? '' : d.getDate();
+}
+
+function renderRecentEventsList() {
+  const el = document.getElementById('recent-events');
+  if (!el) return;
+  if (!recentEventsList.length) { el.style.display = 'none'; return; }
+
+  const total = recentEventsList.length;
+  const totalPages = Math.ceil(total / RECENT_EVENTS_PAGE_SIZE);
+  const start = recentEventsPage * RECENT_EVENTS_PAGE_SIZE;
+  const pageEvents = recentEventsList.slice(start, start + RECENT_EVENTS_PAGE_SIZE);
+
+  const ratedByEvent = {};
+  myRatings.forEach(r => { if (r.event_id) ratedByEvent[r.event_id] = (ratedByEvent[r.event_id] || 0) + 1; });
+
+  el.innerHTML = `
+    <div class="recent-events-label">Events</div>
+    ${pageEvents.map((evt, i) => {
+      const globalIdx = start + i;
+      const ratedCount = ratedByEvent[evt.id] || 0;
+      const urlCount = recentEventsUrlCount[evt.id] || 0;
+      return `
+        <div class="recent-event-row" onclick="selectEvent(recentEventsList[${globalIdx}])">
+          <div class="recent-event-left">
+            <div class="recent-event-name">${escHtml(evt.name)}</div>
+            <div class="recent-event-meta">
+              ${evt.date || '—'}${evt.location ? ' · ' + escHtml(evt.location) : ''}
+            </div>
+          </div>
+          <div class="recent-event-right">
+            ${ratedCount ? `<span class="recent-event-rated">${ratedCount} rated</span>` : ''}
+            ${evt.paramount_url ? `<a class="recent-event-p" href="${escHtml(evt.paramount_url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">▶ Full event</a>` : ''}
+            ${urlCount ? `<span class="recent-event-p-count">▶ ${urlCount} fight${urlCount !== 1 ? 's' : ''}</span>` : ''}
+            <span class="recent-event-chevron">›</span>
+          </div>
+        </div>`;
+    }).join('')}
+    ${totalPages > 1 ? `
+    <div class="events-pagination">
+      <button class="pag-btn" onclick="recentEventsPageChange(-1)" ${recentEventsPage === 0 ? 'disabled' : ''}>← Prev</button>
+      <span class="pag-info">Page ${recentEventsPage + 1} of ${totalPages}</span>
+      <button class="pag-btn" onclick="recentEventsPageChange(1)" ${recentEventsPage >= totalPages - 1 ? 'disabled' : ''}>Next →</button>
+    </div>` : ''}`;
+  el.style.display = 'block';
+}
+
+function recentEventsPageChange(dir) {
+  const totalPages = Math.ceil(recentEventsList.length / RECENT_EVENTS_PAGE_SIZE);
+  recentEventsPage = Math.max(0, Math.min(totalPages - 1, recentEventsPage + dir));
+  renderRecentEventsList();
+}
 let eventSearchTimer = null;
 let currentEvent = null;
 let currentEventFights = [];
 let eventFightRatings = new Map(); // fightId → { rating }
 let savingFights = new Set(); // prevent double-saves
-const epFighterIds = new Map(); // fightId → { f1Id, f1Name, f2Id, f2Name }
-const epFighterTimers = {};
 
-// ── Event Autocomplete ───────────────────────────────────────────────────────
+// ── Event Search (inline results) ────────────────────────────────────────────
 
 function eventSearch() {
   clearTimeout(eventSearchTimer);
+  const q = document.getElementById('event-search').value.trim();
+  if (!q) { renderRecentEventsList(); return; }
   eventSearchTimer = setTimeout(doEventSearch, 300);
 }
 
 async function doEventSearch() {
-  const q  = document.getElementById('event-search').value.trim();
-  const ac = document.getElementById('event-ac');
+  const q = document.getElementById('event-search').value.trim();
   eventAcIdx = -1;
-  if (q.length < 2) { ac.style.display = 'none'; return; }
+  if (q.length < 2) { renderRecentEventsList(); return; }
 
   const { data, error } = await sb
     .from('events')
@@ -29,31 +181,55 @@ async function doEventSearch() {
     .order('date', { ascending: false })
     .limit(10);
 
-  if (error || !data?.length) { ac.style.display = 'none'; eventAcResults = []; return; }
+  eventAcResults = data || [];
+  renderEventSearchResults(q);
+}
 
-  eventAcResults = data;
+function renderEventSearchResults(q) {
+  const el = document.getElementById('recent-events');
+  if (!el) return;
+  const data = eventAcResults;
+  if (!data.length) {
+    el.innerHTML = '<div class="recent-events-label">No events found</div>';
+    el.style.display = 'block';
+    return;
+  }
   const ql = q.toLowerCase();
-  ac.innerHTML = data.map((evt, i) => {
-    return `<div class="ac-item" onmousedown="eventAcPick(event,${i})">
-      <div>${hl(evt.name, ql)}</div>
-      <div class="ac-meta">${evt.date || '—'}${evt.location ? ' · ' + evt.location : ''}</div>
-    </div>`;
-  }).join('');
-  ac.style.display = 'block';
+  const ratedByEvent = {};
+  myRatings.forEach(r => { if (r.event_id) ratedByEvent[r.event_id] = (ratedByEvent[r.event_id] || 0) + 1; });
+  el.innerHTML = `
+    <div class="recent-events-label">Search results</div>
+    ${data.map((evt, i) => {
+      const ratedCount = ratedByEvent[evt.id] || 0;
+      const urlCount = recentEventsUrlCount[evt.id] || 0;
+      return `
+        <div class="recent-event-row" onclick="eventAcPick(event,${i})">
+          <div class="recent-event-left">
+            <div class="recent-event-name">${hl(escHtml(evt.name), ql)}</div>
+            <div class="recent-event-meta">${evt.date || '—'}${evt.location ? ' · ' + escHtml(evt.location) : ''}</div>
+          </div>
+          <div class="recent-event-right">
+            ${ratedCount ? `<span class="recent-event-rated">${ratedCount} rated</span>` : ''}
+            ${evt.paramount_url ? `<a class="recent-event-p" href="${escHtml(evt.paramount_url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">▶ Full event</a>` : ''}
+            ${urlCount ? `<span class="recent-event-p-count">▶ ${urlCount} fight${urlCount !== 1 ? 's' : ''}</span>` : ''}
+            <span class="recent-event-chevron">›</span>
+          </div>
+        </div>`;
+    }).join('')}`;
+  el.style.display = 'block';
 }
 
 function eventSearchKey(e) {
-  const ac = document.getElementById('event-ac');
-  const items = ac.querySelectorAll('.ac-item');
-  if (!items.length || ac.style.display === 'none') return;
+  const items = document.querySelectorAll('#recent-events .recent-event-row');
+  if (!items.length) return;
   if (e.key === 'ArrowDown') { e.preventDefault(); eventAcIdx = Math.min(eventAcIdx+1, items.length-1); items.forEach((el,i) => el.classList.toggle('focused', i===eventAcIdx)); }
   else if (e.key === 'ArrowUp') { e.preventDefault(); eventAcIdx = Math.max(0, eventAcIdx-1); items.forEach((el,i) => el.classList.toggle('focused', i===eventAcIdx)); }
-  else if (e.key === 'Enter') { if (eventAcIdx >= 0) { e.preventDefault(); selectEvent(eventAcResults[eventAcIdx]); } ac.style.display='none'; }
-  else if (e.key === 'Escape') { ac.style.display = 'none'; }
+  else if (e.key === 'Enter') { if (eventAcIdx >= 0 && eventAcResults[eventAcIdx]) { e.preventDefault(); selectEvent(eventAcResults[eventAcIdx]); } }
+  else if (e.key === 'Escape') { document.getElementById('event-search').value = ''; renderRecentEventsList(); }
 }
 
-function eventBlur() { setTimeout(() => { document.getElementById('event-ac').style.display = 'none'; }, 150); }
-function eventAcPick(e, i) { e.preventDefault(); selectEvent(eventAcResults[i]); }
+function eventBlur() {}
+function eventAcPick(e, i) { selectEvent(eventAcResults[i]); }
 
 // ── Event Card ───────────────────────────────────────────────────────────────
 
@@ -61,16 +237,17 @@ async function selectEvent(evt) {
   currentEvent = evt;
   eventFightRatings.clear();
   document.getElementById('event-search').value = evt.name;
-  document.getElementById('event-ac').style.display = 'none';
+  document.getElementById('recent-events').style.display = 'none';
 
   const { data, error } = await sb
     .from('fight_search')
     .select('*')
-    .eq('event_id', evt.id);
+    .eq('event_id', evt.id)
+    .order('fight_position', { ascending: true, nullsFirst: false });
 
   if (error) { showToast('Error loading fights: ' + error.message); return; }
 
-  // Sort by fight_position (nulls last)
+  // Sort by fight_position (nulls last) — mirrors the DB order as a client-side guarantee
   currentEventFights = (data || []).sort((a, b) => {
     const pa = a.fight_position != null ? a.fight_position : 9999;
     const pb = b.fight_position != null ? b.fight_position : 9999;
@@ -88,12 +265,13 @@ function renderEventCard() {
       <div class="event-header">
         <div>
           <div class="event-header-left">
-            <button class="btn btn-outline btn-sm" onclick="closeEvent()">← Back</button>
+            <button class="btn btn-outline btn-sm" onclick="closeEvent()">← ${navReturnContext && navReturnContext.type === 'fighter' ? escHtml(navReturnContext.data.name) : 'Back'}</button>
             <span class="event-title">${escHtml(currentEvent.name)}</span>
           </div>
           <div class="event-meta">
             ${currentEvent.date ? `<span>${currentEvent.date}</span>` : ''}
             ${currentEvent.location ? `<span>${currentEvent.location}</span>` : ''}
+            ${currentEvent.paramount_url ? `<a class="btn btn-paramount btn-sm" href="${escHtml(currentEvent.paramount_url)}" target="_blank" rel="noopener">▶ Watch on Paramount+</a>` : ''}
           </div>
         </div>
         <span class="event-progress" id="event-progress">${rated} / ${currentEventFights.length} rated</span>
@@ -107,12 +285,31 @@ function renderEventCard() {
   document.getElementById('event-search-card').style.display = 'none';
 }
 
+function getFighterRecord(name, beforeDateStr) {
+  const beforeTs = beforeDateStr ? new Date(beforeDateStr).getTime() : Infinity;
+  let w = 0, l = 0, d = 0;
+  myRatings.forEach(r => {
+    const isF1 = r.fighter1_name === name;
+    const isF2 = r.fighter2_name === name;
+    if (!isF1 && !isF2) return;
+    const ts = r.event_date ? new Date(r.event_date).getTime() : null;
+    if (!ts || ts >= beforeTs) return;
+    if (r.winner_name === name) w++;
+    else if (r.winner_name) l++;
+    else d++;
+  });
+  if (w + l + d === 0) return null;
+  return `${w}-${l}${d ? '-'+d : ''}`;
+}
+
 function renderFightRow(fight, opts) {
   opts = opts || {};
   const rating = myRatings.find(r => r.fight_id === fight.id);
-  const isRated = !!rating;
-  const currentVal = isRated ? (rating.rating || 0) : 0;
-  const notes = isRated ? (rating.notes || '') : '';
+  const isRated = !!(rating && rating.rating);
+  const currentVal = isRated ? rating.rating : 0;
+  const notes = rating ? (rating.notes || '') : '';
+  const f1rec = getFighterRecord(fight.fighter1_name, fight.event_date);
+  const f2rec = getFighterRecord(fight.fighter2_name, fight.event_date);
 
   eventFightRatings.set(fight.id, { rating: currentVal });
 
@@ -121,6 +318,7 @@ function renderFightRow(fight, opts) {
         ${fight.winner_name ? `<span><strong>W:</strong> ${escHtml(fight.winner_name)}</span>` : '<span>Draw / NC</span>'}
         ${fight.method ? `<span>${escHtml(fight.method)}</span>` : ''}
         ${fight.round ? `<span>R${fight.round}${fight.time ? ' · '+fight.time : ''}</span>` : ''}
+        ${fight.details && !fight.details.includes('|') ? `<span class="fight-details">${escHtml(fight.details)}</span>` : ''}
       </div>`
     : `<div class="fight-row-result spoiler">Rate this fight to reveal the result</div>`;
 
@@ -134,259 +332,45 @@ function renderFightRow(fight, opts) {
         </div>
         <div style="display:flex;align-items:center;gap:8px">
         ${isRated ? '<span class="rated-check">✓ rated</span>' : ''}
-        <button class="btn btn-outline btn-sm fight-edit-btn" onclick="toggleFightEdit('${fight.id}')">Edit</button>
+        ${fight.paramount_url ? `<a class="btn btn-paramount btn-sm" href="${escHtml(fight.paramount_url)}" target="_blank" rel="noopener">▶ Watch</a>` : ''}
       </div>
       </div>
-      <div class="fight-row-matchup">${fight.fighter1_rank ? '<span class="rank-tag">#'+escHtml(fight.fighter1_rank)+'</span> ' : ''}${escHtml(fight.fighter1_name)} vs ${fight.fighter2_rank ? '<span class="rank-tag">#'+escHtml(fight.fighter2_rank)+'</span> ' : ''}${escHtml(fight.fighter2_name)}</div>
-      ${opts.showEvent && fight.event_name ? '<div class="fight-row-event-meta">'+escHtml(fight.event_name)+(fight.event_date?' · '+fight.event_date:'')+'</div>' : ''}
+      <div class="fight-row-matchup">${fight.fighter1_rank ? '<span class="rank-tag">#'+escHtml(fight.fighter1_rank)+'</span> ' : ''}<button class="nav-link" onclick="navToFighter('${fight.fighter1_id}','${(fight.fighter1_name||'').replace(/'/g,"\\'")}')">${escHtml(fight.fighter1_name)}</button>${fight.fighter1_is_debut ? ' <span class="debut-tag">DEBUT</span>' : ''}${f1rec ? ' <span class="fighter-record">('+f1rec+')</span>' : ''} vs ${fight.fighter2_rank ? '<span class="rank-tag">#'+escHtml(fight.fighter2_rank)+'</span> ' : ''}<button class="nav-link" onclick="navToFighter('${fight.fighter2_id}','${(fight.fighter2_name||'').replace(/'/g,"\\'")}')">${escHtml(fight.fighter2_name)}</button>${fight.fighter2_is_debut ? ' <span class="debut-tag">DEBUT</span>' : ''}${f2rec ? ' <span class="fighter-record">('+f2rec+')</span>' : ''}</div>
+      ${opts.showEvent && fight.event_name ? '<div class="fight-row-event-meta"><button class="nav-link" onclick="navToEvent(\''+fight.event_id+'\')">'+escHtml(fight.event_name)+'</button>'+(fight.event_date?' · '+fight.event_date:'')+'</div>' : ''}
       ${fight.notes ? '<div class="fight-row-notes-info">'+escHtml(fight.notes)+'</div>' : ''}
       <div class="fight-row-bottom">
         <div class="fight-row-controls">
-          <div class="fight-row-stars" id="stars-${fight.id}">${buildClickableStars(fight.id, currentVal)}</div>
+          <div class="fight-row-stars" id="stars-${fight.id}" onmouseleave="hoverFightStars('${fight.id}',0)">${buildClickableStars(fight.id, currentVal, 17)}</div>
           <span class="fight-row-rating-lbl" id="star-lbl-${fight.id}">${currentVal ? currentVal+'/5' : '—'}</span>
         </div>
         <div id="result-${fight.id}">${resultHtml}</div>
       </div>
-      <textarea class="fight-row-notes" id="notes-${fight.id}" placeholder="Notes…"
-        onblur="saveNotes('${fight.id}')">${escHtml(notes)}</textarea>
-      <div class="fight-row-edit-panel" id="edit-panel-${fight.id}" style="display:none">${buildFightEditPanel(fight)}</div>
+      <input class="fight-row-notes" id="notes-${fight.id}" type="text" placeholder="Notes…" value="${escHtml(notes)}"
+        onblur="saveNotes('${fight.id}')">
     </div>`;
 }
 
-// ── Inline Fight Edit ────────────────────────────────────────────────────────
-
-function buildFightEditPanel(fight) {
-  // Initialise fighter state with current values so save works without changing anything
-  epFighterIds.set(fight.id, {
-    f1Id: fight.fighter1_id, f1Name: fight.fighter1_name || '',
-    f2Id: fight.fighter2_id, f2Name: fight.fighter2_name || ''
-  });
-
-  const wcOptions = ['','Strawweight','Flyweight','Bantamweight','Featherweight','Lightweight','Welterweight','Middleweight','Light Heavyweight','Heavyweight',
-    "Women's Strawweight","Women's Flyweight","Women's Bantamweight","Women's Featherweight"]
-    .map(w => `<option value="${w}"${w===(fight.weight_class||'')?' selected':''}>${w||'—'}</option>`).join('');
-
-  const ptOptions = ['','Main Event','Main Card','Prelim']
-    .map(p => `<option value="${p}"${p===(fight.fight_position_type||'')?' selected':''}>${p||'—'}</option>`).join('');
-
-  const wid = fight.winner_id || '';
-
-  return `
-    <div class="fight-edit-section">
-      <div class="fight-edit-row">
-        <div class="fight-edit-field" style="position:relative">
-          <label>Fighter 1</label>
-          <input type="text" id="ep-f1-${fight.id}" class="admin-input" value="${escHtml(fight.fighter1_name||'')}" autocomplete="off"
-            oninput="epFighterSearch('${fight.id}','f1')"
-            onblur="setTimeout(()=>{const el=document.getElementById('ep-f1-ac-${fight.id}');if(el)el.style.display='none'},150)">
-          <div class="ac-dropdown" id="ep-f1-ac-${fight.id}" style="display:none"></div>
-        </div>
-        <div class="fight-edit-field" style="position:relative">
-          <label>Fighter 2</label>
-          <input type="text" id="ep-f2-${fight.id}" class="admin-input" value="${escHtml(fight.fighter2_name||'')}" autocomplete="off"
-            oninput="epFighterSearch('${fight.id}','f2')"
-            onblur="setTimeout(()=>{const el=document.getElementById('ep-f2-ac-${fight.id}');if(el)el.style.display='none'},150)">
-          <div class="ac-dropdown" id="ep-f2-ac-${fight.id}" style="display:none"></div>
-        </div>
-      </div>
-      <div class="fight-edit-row">
-        <div class="fight-edit-field">
-          <label>Division</label>
-          <select id="ep-wc-${fight.id}" class="admin-input">${wcOptions}</select>
-        </div>
-        <div class="fight-edit-field">
-          <label>Card position</label>
-          <select id="ep-pt-${fight.id}" class="admin-input">${ptOptions}</select>
-        </div>
-        <div class="fight-edit-field fight-edit-field--narrow">
-          <label>F1 rank</label>
-          <input type="text" id="ep-f1r-${fight.id}" class="admin-input" value="${escHtml(fight.fighter1_rank||'')}" placeholder="C, 1…">
-        </div>
-        <div class="fight-edit-field fight-edit-field--narrow">
-          <label>F2 rank</label>
-          <input type="text" id="ep-f2r-${fight.id}" class="admin-input" value="${escHtml(fight.fighter2_rank||'')}" placeholder="C, 1…">
-        </div>
-        <label class="fight-edit-checkbox"><input type="checkbox" id="ep-title-${fight.id}" ${fight.is_title?'checked':''}> Title bout</label>
-      </div>
-      <div class="fight-edit-row">
-        <div class="fight-edit-field" style="flex:2">
-          <label>Fight notes</label>
-          <input type="text" id="ep-notes-${fight.id}" class="admin-input" value="${escHtml(fight.notes||'')}" placeholder="Catchweight, missed weight…">
-        </div>
-      </div>
-      <div class="fight-edit-divider">Result</div>
-      <div class="fight-edit-row">
-        <div class="fight-edit-field">
-          <label>Winner</label>
-          <select id="ep-winner-${fight.id}" class="admin-input">
-            <option value="">Draw / NC</option>
-            <option value="${fight.fighter1_id}" ${wid===fight.fighter1_id?'selected':''}>${escHtml(fight.fighter1_name||'')}</option>
-            <option value="${fight.fighter2_id}" ${wid===fight.fighter2_id?'selected':''}>${escHtml(fight.fighter2_name||'')}</option>
-          </select>
-        </div>
-        <div class="fight-edit-field" style="flex:2">
-          <label>Method</label>
-          <input type="text" id="ep-method-${fight.id}" class="admin-input" value="${escHtml(fight.method||'')}" placeholder="KO/TKO, Decision (Unanimous)…">
-        </div>
-        <div class="fight-edit-field">
-          <label>Type</label>
-          <select id="ep-mbroad-${fight.id}" class="admin-input">
-            <option value="">—</option>
-            <option ${fight.method_broad==='KO/TKO'?'selected':''}>KO/TKO</option>
-            <option ${fight.method_broad==='Submission'?'selected':''}>Submission</option>
-            <option ${fight.method_broad==='Decision'?'selected':''}>Decision</option>
-            <option ${fight.method_broad==='No Contest'?'selected':''}>No Contest</option>
-            <option ${fight.method_broad==='Draw'?'selected':''}>Draw</option>
-          </select>
-        </div>
-        <div class="fight-edit-field fight-edit-field--narrow">
-          <label>Round</label>
-          <input type="number" id="ep-round-${fight.id}" class="admin-input" min="1" max="5" value="${fight.round||''}">
-        </div>
-        <div class="fight-edit-field fight-edit-field--narrow">
-          <label>Time</label>
-          <input type="text" id="ep-time-${fight.id}" class="admin-input" value="${escHtml(fight.time||'')}" placeholder="4:35">
-        </div>
-      </div>
-      <div style="display:flex;gap:8px;margin-top:10px;align-items:center">
-        <button class="btn btn-red btn-sm" onclick="saveFightEdit('${fight.id}')">Save</button>
-        <button class="btn btn-outline btn-sm" onclick="toggleFightEdit('${fight.id}')">Cancel</button>
-        <button class="btn-danger" style="margin-left:auto" onclick="deleteFightFromCard('${fight.id}')">Delete fight</button>
-      </div>
-    </div>`;
-}
-
-function epFighterSearch(fightId, which) {
-  const key = fightId + which;
-  clearTimeout(epFighterTimers[key]);
-  epFighterTimers[key] = setTimeout(() => doEpFighterSearch(fightId, which), 300);
-}
-
-async function doEpFighterSearch(fightId, which) {
-  const input = document.getElementById('ep-' + which + '-' + fightId);
-  const ac = document.getElementById('ep-' + which + '-ac-' + fightId);
-  if (!input || !ac) return;
-  const q = input.value.trim();
-  if (q.length < 2) { ac.style.display = 'none'; return; }
-
-  const { data } = await sb.from('fighters').select('id, name')
-    .ilike('name', `%${q}%`).order('name').limit(8);
-  if (!data?.length) { ac.style.display = 'none'; return; }
-
-  const ql = q.toLowerCase();
-  ac.innerHTML = data.map(f =>
-    `<div class="ac-item" onmousedown="epPickFighter('${fightId}','${which}','${f.id}','${escHtml(f.name)}')">${hl(f.name, ql)}</div>`
-  ).join('');
-  ac.style.display = 'block';
-}
-
-function epPickFighter(fightId, which, id, name) {
-  const state = epFighterIds.get(fightId) || {};
-  if (which === 'f1') { state.f1Id = id; state.f1Name = name; }
-  else               { state.f2Id = id; state.f2Name = name; }
-  epFighterIds.set(fightId, state);
-
-  const input = document.getElementById('ep-' + which + '-' + fightId);
-  const ac    = document.getElementById('ep-' + which + '-ac-' + fightId);
-  if (input) input.value = name;
-  if (ac) ac.style.display = 'none';
-
-  // Keep winner dropdown in sync with updated fighter names/IDs
-  const winnerSel = document.getElementById('ep-winner-' + fightId);
-  if (winnerSel) {
-    const f1Id   = state.f1Id   || '';
-    const f2Id   = state.f2Id   || '';
-    const f1Name = state.f1Name || '';
-    const f2Name = state.f2Name || '';
-    const cur    = winnerSel.value;
-    winnerSel.innerHTML =
-      `<option value="">Draw / NC</option>` +
-      `<option value="${f1Id}"${cur===f1Id?' selected':''}>${escHtml(f1Name)}</option>` +
-      `<option value="${f2Id}"${cur===f2Id?' selected':''}>${escHtml(f2Name)}</option>`;
-  }
-}
-
-function toggleFightEdit(fightId) {
-  const panel = document.getElementById('edit-panel-' + fightId);
-  if (!panel) return;
-  panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
-}
-
-async function saveFightEdit(fightId) {
-  let wc = document.getElementById('ep-wc-' + fightId).value || null;
-  const posType = document.getElementById('ep-pt-' + fightId).value || null;
-  const isTitle = document.getElementById('ep-title-' + fightId).checked;
-  const isMain = posType === 'Main Event';
-  const f1Rank = document.getElementById('ep-f1r-' + fightId).value.trim() || null;
-  const f2Rank = document.getElementById('ep-f2r-' + fightId).value.trim() || null;
-  const fightNotes = document.getElementById('ep-notes-' + fightId).value.trim() || null;
-
-  const epState = epFighterIds.get(fightId) || {};
-  const fightUpdate = {
-    weight_class: wc, fight_position_type: posType,
-    is_main: isMain, is_title: isTitle,
-    fighter1_rank: f1Rank, fighter2_rank: f2Rank, notes: fightNotes
-  };
-  if (epState.f1Id) fightUpdate.fighter1_id = epState.f1Id;
-  if (epState.f2Id) fightUpdate.fighter2_id = epState.f2Id;
-
-  const { error: fightError } = await sb.from('fights').update(fightUpdate).eq('id', fightId);
-  if (fightError) { showToast('Error saving fight: ' + fightError.message); return; }
-
-  const winnerId = document.getElementById('ep-winner-' + fightId).value || null;
-  const method = document.getElementById('ep-method-' + fightId).value.trim() || null;
-  const methodBroad = document.getElementById('ep-mbroad-' + fightId).value || null;
-  const round = parseInt(document.getElementById('ep-round-' + fightId).value) || null;
-  const time = document.getElementById('ep-time-' + fightId).value.trim() || null;
-
-  const { error: resultError } = await sb.from('fight_results').upsert({
-    fight_id: fightId, winner_id: winnerId,
-    method, method_broad: methodBroad, round, time
-  }, { onConflict: 'fight_id' });
-  if (resultError) { showToast('Error saving result: ' + resultError.message); return; }
-
-  showToast('Fight updated');
-
-  if (currentFighter) {
-    await reloadFighterFights();
-  } else if (currentEvent) {
-    const { data } = await sb.from('fight_search').select('*').eq('event_id', currentEvent.id);
-    if (data) {
-      currentEventFights = data.sort((a, b) => {
-        const pa = a.fight_position != null ? a.fight_position : 9999;
-        const pb = b.fight_position != null ? b.fight_position : 9999;
-        return pa - pb;
-      });
-      renderEventCard();
-    }
-  }
-}
-
-async function deleteFightFromCard(fightId) {
-  if (!confirm('Delete this fight and its result? This cannot be undone.')) return;
-  await sb.from('fight_results').delete().eq('fight_id', fightId);
-  await sb.from('ratings').delete().eq('fight_id', fightId);
-  const { error } = await sb.from('fights').delete().eq('id', fightId);
-  if (error) { showToast('Error: ' + error.message); return; }
-
-  myRatings = myRatings.filter(r => r.fight_id !== fightId);
-  showToast('Fight deleted');
-  if (currentFighter) {
-    currentFighterFights = currentFighterFights.filter(f => f.id !== fightId);
-    renderFighterCard();
-  } else {
-    currentEventFights = currentEventFights.filter(f => f.id !== fightId);
-    renderEventCard();
-  }
-}
 
 function closeEvent() {
+  if (navReturnContext && navReturnContext.type === 'fighter') {
+    const ctx = navReturnContext;
+    navReturnContext = null;
+    currentEvent = null;
+    currentEventFights = [];
+    eventFightRatings.clear();
+    activateView('view-fighter', 'Fighter');
+    selectFighterForPage(ctx.data);
+    return;
+  }
   document.getElementById('event-card').style.display = 'none';
   document.getElementById('event-search-card').style.display = 'block';
   document.getElementById('event-search').value = '';
   currentEvent = null;
   currentEventFights = [];
   eventFightRatings.clear();
+  navReturnContext = null;
+  renderUpcomingEvents();
+  renderRecentEventsList();
 }
 
 function updateEventProgress() {
@@ -405,7 +389,6 @@ function buildClickableStars(fightId, currentVal, size) {
     const fill = currentVal >= i ? 'full' : currentVal >= i-0.5 ? 'half' : 'empty';
     h += `<span class="fight-star"
       onmousemove="moveFightStar(event,'${fightId}',${i})"
-      onmouseout="hoverFightStars('${fightId}',0)"
       onclick="clickFightStar(event,'${fightId}',${i})">${starSVG(fill, size)}</span>`;
   }
   return h;
@@ -494,21 +477,32 @@ async function saveFightRating(fightId) {
   showToast(existing ? 'Rating updated' : 'Fight rated!');
 }
 
-// Save notes on blur (if fight is already rated)
+// Save notes on blur
 async function saveNotes(fightId) {
-  const existing = myRatings.find(x => x.fight_id === fightId);
-  if (!existing) return; // only save notes if fight is already rated
-
   const notesEl = document.getElementById('notes-' + fightId);
   const notesVal = notesEl ? notesEl.value.trim() : '';
-  if ((existing.notes || '') === notesVal) return; // no change
 
-  const { error } = await sb.from('ratings')
-    .update({ notes: notesVal || null })
-    .eq('fight_id', fightId);
+  const existing = myRatings.find(x => x.fight_id === fightId);
+
+  // No change
+  if (existing && (existing.notes || '') === notesVal) return;
+  // Nothing to save
+  if (!existing && !notesVal) return;
+
+  let error;
+  if (existing) {
+    ({ error } = await sb.from('ratings').update({ notes: notesVal || null }).eq('fight_id', fightId));
+    if (!error) existing.notes = notesVal || null;
+  } else {
+    const inEventCtx = currentEventFights.some(f => f.id === fightId);
+    const fight = inEventCtx
+      ? currentEventFights.find(f => f.id === fightId)
+      : currentFighterFights.find(f => f.id === fightId);
+    const entry = { fight_id: fightId, rating: null, notes: notesVal, logged_at: Date.now() };
+    ({ error } = await sb.from('ratings').insert(entry));
+    if (!error) myRatings.unshift({ ...fight, ...entry });
+  }
 
   if (error) { showToast('Error saving notes'); return; }
-
-  existing.notes = notesVal || null;
   showToast('Notes saved');
 }
