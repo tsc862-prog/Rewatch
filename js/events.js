@@ -342,6 +342,7 @@ function renderFightRow(fight, opts) {
         <div class="fight-row-controls">
           <div class="fight-row-stars" id="stars-${fight.id}" onmouseleave="hoverFightStars('${fight.id}',0)">${buildClickableStars(fight.id, currentVal, 17)}</div>
           <span class="fight-row-rating-lbl" id="star-lbl-${fight.id}">${currentVal ? currentVal+'/5' : '—'}</span>
+          ${fightAggregates.has(fight.id) ? `<span class="community-avg" title="Community average across ${fightAggregates.get(fight.id).count} rating${fightAggregates.get(fight.id).count!==1?'s':''}">avg ${fightAggregates.get(fight.id).avg} <span class="community-count">· ${fightAggregates.get(fight.id).count}</span></span>` : ''}
         </div>
         <div id="result-${fight.id}">${resultHtml}</div>
       </div>
@@ -420,6 +421,7 @@ function hoverFightStars(fightId, val) {
 }
 
 function setFightRating(fightId, val) {
+  if (!requireAuth('rate fights')) { hoverFightStars(fightId, 0); return; }
   if (!eventFightRatings.has(fightId)) {
     eventFightRatings.set(fightId, { rating: 0 });
   }
@@ -442,6 +444,7 @@ async function saveFightRating(fightId) {
 
   const entry = {
     fight_id:  fightId,
+    user_id:   currentUser.id,
     rating:    state.rating,
     notes:     notesVal || null,
     logged_at: Date.now()
@@ -475,12 +478,15 @@ async function saveFightRating(fightId) {
   if (currentFighter) updateFighterProgress();
   else updateEventProgress();
   showToast(existing ? 'Rating updated' : 'Fight rated!');
+  loadFightAggregates();
 }
 
 // Save notes on blur
 async function saveNotes(fightId) {
   const notesEl = document.getElementById('notes-' + fightId);
   const notesVal = notesEl ? notesEl.value.trim() : '';
+  if (!notesVal) return;
+  if (!currentUser) { requireAuth('save notes'); return; }
 
   const existing = myRatings.find(x => x.fight_id === fightId);
 
@@ -498,7 +504,7 @@ async function saveNotes(fightId) {
     const fight = inEventCtx
       ? currentEventFights.find(f => f.id === fightId)
       : currentFighterFights.find(f => f.id === fightId);
-    const entry = { fight_id: fightId, rating: null, notes: notesVal, logged_at: Date.now() };
+    const entry = { fight_id: fightId, user_id: currentUser.id, rating: null, notes: notesVal, logged_at: Date.now() };
     ({ error } = await sb.from('ratings').insert(entry));
     if (!error) myRatings.unshift({ ...fight, ...entry });
   }

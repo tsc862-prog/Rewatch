@@ -189,6 +189,10 @@ tr:hover td{background:#fafaf8}
 .fight-star{display:inline-flex;cursor:pointer;transition:transform 0.1s}
 .fight-star:hover{transform:scale(1.15)}
 .fight-row-rating-lbl{font-size:11px;color:#bbb;min-width:28px}
+.community-avg{font-size:10px;color:#888;background:#f5f3ef;padding:2px 7px;border-radius:20px;font-weight:600;letter-spacing:0.2px}
+.community-avg .community-count{color:#bbb;font-weight:500}
+body.dark .community-avg{background:#252525;color:#aaa}
+body.dark .community-avg .community-count{color:#666}
 .fight-row-notes{display:block;width:100%;margin-top:6px;padding:5px 10px;border:1.5px solid #f0ede8;border-radius:7px;font-size:12px;background:#fafaf8;color:#1c1c1a;outline:none;font-family:inherit}
 .fight-row-notes:focus{border-color:#E24B4A;background:white;box-shadow:0 0 0 3px rgba(226,75,74,0.08)}
 .fight-row-result{padding:3px 8px;border-radius:7px;font-size:11px;color:#555;display:flex;gap:10px;flex-wrap:wrap;white-space:nowrap}
@@ -207,6 +211,27 @@ tr:hover td{background:#fafaf8}
   .fight-row-bottom{flex-direction:column;align-items:flex-start}
   .fight-row-controls{flex-direction:column;align-items:flex-start}
 }
+
+/* ── Auth Screen ───────────────────────────────────────────────────────────── */
+.auth-screen{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#eceae6;padding:1.5rem;z-index:1000}
+.auth-card{background:white;border-radius:16px;padding:2rem;width:100%;max-width:380px;box-shadow:0 10px 40px rgba(0,0,0,0.1);position:relative}
+.auth-close{position:absolute;top:12px;right:14px;background:transparent;border:none;font-size:24px;color:#bbb;cursor:pointer;line-height:1;padding:4px 10px;border-radius:6px;transition:all 0.15s}
+.auth-close:hover{color:#555;background:#f5f3ef}
+body.dark .auth-close{color:#555}
+body.dark .auth-close:hover{color:#aaa;background:#252525}
+.auth-logo{display:flex;align-items:center;gap:10px;justify-content:center;margin-bottom:1.75rem}
+.auth-logo .logo-text{color:#111827;font-size:17px}
+.auth-tabs{display:flex;gap:4px;background:#f5f3ef;border-radius:10px;padding:3px;margin-bottom:1.25rem}
+.auth-tab{flex:1;background:transparent;border:none;padding:8px;font-size:13px;font-weight:600;color:#888;cursor:pointer;border-radius:8px;transition:all 0.15s;font-family:inherit}
+.auth-tab.active{background:white;color:#111827;box-shadow:0 1px 3px rgba(0,0,0,0.08)}
+.auth-form{display:flex;flex-direction:column;gap:0}
+.auth-error{font-size:12px;color:#A32D2D;background:#FCEBEB;padding:8px 12px;border-radius:8px;margin-bottom:12px}
+
+/* ── Header Right ──────────────────────────────────────────────────────────── */
+.header-right{display:flex;align-items:center;gap:8px}
+.user-email{font-size:12px;color:rgba(255,255,255,0.6);font-weight:500;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.logout-btn{background:transparent;border:1.5px solid rgba(255,255,255,0.2);border-radius:8px;padding:5px 12px;cursor:pointer;color:rgba(255,255,255,0.7);font-size:13px;font-weight:500;font-family:inherit;transition:all 0.15s;flex-shrink:0}
+.logout-btn:hover{background:rgba(255,255,255,0.1);color:white;border-color:rgba(255,255,255,0.35)}
 
 /* ── Dark Mode Toggle Button ───────────────────────────────────────────────── */
 .dark-toggle{background:transparent;border:1.5px solid rgba(255,255,255,0.2);border-radius:8px;padding:5px 10px;cursor:pointer;color:rgba(255,255,255,0.7);font-size:13px;font-weight:500;font-family:inherit;transition:all 0.15s;margin-left:8px;flex-shrink:0}
@@ -374,3 +399,12 @@ body.dark .fighter-record{color:#666}
 /* Nav Link */
 body.dark .nav-link{color:#d4d4d4}
 body.dark .nav-link:hover{color:#E24B4A}
+
+/* Auth Screen */
+body.dark .auth-screen{background:#0f0f0f}
+body.dark .auth-card{background:#1a1a1a;box-shadow:0 10px 40px rgba(0,0,0,0.5)}
+body.dark .auth-logo .logo-text{color:#e0e0e0}
+body.dark .auth-tabs{background:#151515}
+body.dark .auth-tab{color:#666}
+body.dark .auth-tab.active{background:#1e1e1e;color:#e0e0e0}
+body.dark .auth-error{background:#2a1010;color:#e05555}

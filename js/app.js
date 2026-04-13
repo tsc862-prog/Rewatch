@@ -36,15 +36,121 @@ async function navToEvent(eventId) {
   selectEvent(data);
 }
 
+// ── Aggregate ratings (community avg) ─────────────────────────────────────────
+let fightAggregates = new Map(); // fight_id → { avg, count }
+
+async function loadFightAggregates() {
+  const { data, error } = await sb.rpc('fight_rating_stats');
+  if (error || !data) { fightAggregates = new Map(); return; }
+  fightAggregates = new Map(data.map(r => [r.fight_id, { avg: Number(r.avg_rating), count: Number(r.rating_count) }]));
+}
+
 // ── Shared state ──────────────────────────────────────────────────────────────
 let myRatings = [];
 let selectedFight = null;
 let currentRating = 0;
 let methodChartInst = null;
 
+// ── Auth ──────────────────────────────────────────────────────────────────────
+let currentUser = null;
+let authMode = 'login';
+
+function switchAuthTab(mode) {
+  authMode = mode;
+  document.getElementById('auth-tab-login').classList.toggle('active', mode === 'login');
+  document.getElementById('auth-tab-signup').classList.toggle('active', mode === 'signup');
+  document.getElementById('auth-submit').textContent = mode === 'login' ? 'Log in' : 'Create account';
+  document.getElementById('auth-password').setAttribute('autocomplete', mode === 'login' ? 'current-password' : 'new-password');
+  document.getElementById('auth-error').style.display = 'none';
+}
+
+async function submitAuth(e) {
+  e.preventDefault();
+  const email = document.getElementById('auth-email').value.trim();
+  const password = document.getElementById('auth-password').value;
+  const errEl = document.getElementById('auth-error');
+  const submitBtn = document.getElementById('auth-submit');
+  errEl.style.display = 'none';
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'Please wait…';
+
+  const fn = authMode === 'login' ? sb.auth.signInWithPassword : sb.auth.signUp;
+  const { data, error } = await fn.call(sb.auth, { email, password });
+
+  submitBtn.disabled = false;
+  submitBtn.textContent = authMode === 'login' ? 'Log in' : 'Create account';
+
+  if (error) {
+    errEl.textContent = error.message;
+    errEl.style.display = 'block';
+    return false;
+  }
+
+  if (authMode === 'signup' && !data.session) {
+    errEl.textContent = 'Check your email to confirm your account, then log in.';
+    errEl.style.display = 'block';
+    errEl.style.color = '#3B6D11';
+    switchAuthTab('login');
+    return false;
+  }
+
+  currentUser = data.user;
+  await enterApp();
+  return false;
+}
+
+async function logout() {
+  await sb.auth.signOut();
+  currentUser = null;
+  myRatings = [];
+  updateAuthUI();
+  renderTable();
+  if (typeof renderRecentEventsList === 'function') renderRecentEventsList();
+}
+
+async function enterApp() {
+  hideAuthScreen();
+  updateAuthUI();
+  await loadRatings();
+  renderTable();
+  if (typeof renderRecentEventsList === 'function') renderRecentEventsList();
+  if (currentEvent) renderEventCard();
+  if (currentFighter) renderFighterCard();
+}
+
+function showAuthScreen() {
+  document.getElementById('auth-screen').style.display = 'flex';
+  document.getElementById('auth-error').style.display = 'none';
+}
+
+function hideAuthScreen() {
+  document.getElementById('auth-screen').style.display = 'none';
+  document.getElementById('auth-email').value = '';
+  document.getElementById('auth-password').value = '';
+}
+
+function requireAuth(action) {
+  if (currentUser) return true;
+  showAuthScreen();
+  showToast('Log in to ' + (action || 'rate fights'));
+  return false;
+}
+
+function updateAuthUI() {
+  const isAuthed = !!currentUser;
+  document.getElementById('user-email').textContent = isAuthed ? currentUser.email : '';
+  document.getElementById('user-email').style.display = isAuthed ? '' : 'none';
+  document.getElementById('logout-btn').style.display = isAuthed ? '' : 'none';
+  document.getElementById('login-btn').style.display = isAuthed ? 'none' : '';
+}
+
 // ── Init ──────────────────────────────────────────────────────────────────────
 async function init() {
-  await Promise.all([loadRatings(), tryLoadDB()]);
+  const { data } = await sb.auth.getSession();
+  if (data.session) currentUser = data.session.user;
+  document.getElementById('app-shell').style.display = 'block';
+  updateAuthUI();
+  await Promise.all([currentUser ? loadRatings() : Promise.resolve(), tryLoadDB(), loadFightAggregates()]);
   renderTable();
 }
 

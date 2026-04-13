@@ -73,7 +73,14 @@ function renderTable() {
 
   const tbody = document.getElementById('fight-tbody');
   const empty = document.getElementById('table-empty');
-  if (!filtered.length) { tbody.innerHTML = ''; empty.style.display = 'block'; return; }
+  if (!filtered.length) {
+    tbody.innerHTML = '';
+    empty.textContent = currentUser
+      ? 'No fights rated yet — head to "Rate event" to get started.'
+      : 'Log in to see your ratings.';
+    empty.style.display = 'block';
+    return;
+  }
   empty.style.display = 'none';
   tbody.innerHTML = filtered.map(f => {
     const hasNotes = !!f.notes;

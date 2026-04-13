@@ -19,6 +19,7 @@ async function loadRatings() {
 }
 
 async function deleteRating(fightId) {
+  if (!requireAuth('manage ratings')) return;
   const { error } = await sb.from('ratings').delete().eq('fight_id', fightId);
   if (error) { showToast('Error: ' + error.message); return; }
   myRatings = myRatings.filter(r => r.fight_id !== fightId);
