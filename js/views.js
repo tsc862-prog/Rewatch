@@ -136,7 +136,99 @@ function renderDashboard() {
   document.getElementById('d-time').textContent = formatFightTime(calcTotalFightTime());
   renderMethodChart();
   renderWcBars();
-  renderFighters();
+  renderRatingChart();
+  renderLeaderboard();
+  renderActivityFeed();
+}
+
+function relativeTime(iso) {
+  const then = new Date(iso).getTime();
+  const diff = Math.floor((Date.now() - then) / 1000);
+  if (diff < 60) return diff + 's ago';
+  if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
+  if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
+  if (diff < 2592000) return Math.floor(diff / 86400) + 'd ago';
+  return new Date(iso).toLocaleDateString();
+}
+
+async function renderActivityFeed() {
+  const el = document.getElementById('activity-feed');
+  if (!el) return;
+
+  const { data: logs, error } = await sb
+    .from('change_log')
+    .select('*')
+    .order('logged_at', { ascending: false })
+    .limit(20);
+
+  if (error) { el.innerHTML = '<div class="empty">Error loading activity.</div>'; return; }
+  if (!logs?.length) { el.innerHTML = '<div class="empty">No recent activity.</div>'; return; }
+
+  // Collect fighter / event ids we need to resolve for labels
+  const fighterIds = new Set();
+  const eventIds = new Set();
+  const fightIds = new Set();
+  for (const l of logs) {
+    const c = l.changes || {};
+    if (c.fighter1_id) fighterIds.add(c.fighter1_id);
+    if (c.fighter2_id) fighterIds.add(c.fighter2_id);
+    if (c.event_id) eventIds.add(c.event_id);
+    if (c.fight_id) fightIds.add(c.fight_id);
+    if (l.table_name === 'fighters') fighterIds.add(l.row_id);
+    if (l.table_name === 'events') eventIds.add(l.row_id);
+    if (l.table_name === 'fights') fightIds.add(l.row_id);
+  }
+
+  const [fightersRes, eventsRes, fightsRes] = await Promise.all([
+    fighterIds.size ? sb.from('fighters').select('id,name').in('id', [...fighterIds]) : Promise.resolve({data:[]}),
+    eventIds.size   ? sb.from('events').select('id,name').in('id', [...eventIds])     : Promise.resolve({data:[]}),
+    fightIds.size   ? sb.from('fight_search').select('id,fighter1_name,fighter2_name,event_name').in('id', [...fightIds]) : Promise.resolve({data:[]})
+  ]);
+  const fighterMap = Object.fromEntries((fightersRes.data || []).map(f => [f.id, f.name]));
+  const eventMap   = Object.fromEntries((eventsRes.data || []).map(e => [e.id, e.name]));
+  const fightMap   = Object.fromEntries((fightsRes.data || []).map(f => [f.id, f]));
+
+  function describe(log) {
+    const c = log.changes || {};
+    const action = log.action;
+    const t = log.table_name;
+    if (t === 'ratings') {
+      const fight = fightMap[c.fight_id];
+      const label = fight ? `${fight.fighter1_name} vs ${fight.fighter2_name}` : 'a fight';
+      if (action === 'DELETE') return `Removed rating for ${label}`;
+      const r = c.rating != null ? ` — ${c.rating}★` : '';
+      return `${action === 'INSERT' ? 'Rated' : 'Updated rating'}: ${label}${r}`;
+    }
+    if (t === 'fights') {
+      const fight = fightMap[log.row_id];
+      const label = fight
+        ? `${fight.fighter1_name} vs ${fight.fighter2_name}`
+        : (c.fighter1_id && c.fighter2_id ? `${fighterMap[c.fighter1_id]||'?'} vs ${fighterMap[c.fighter2_id]||'?'}` : 'a fight');
+      if (action === 'INSERT') return `Added fight: ${label}`;
+      if (action === 'DELETE') return `Deleted fight: ${label}`;
+      return `Updated fight: ${label}`;
+    }
+    if (t === 'events') {
+      const name = eventMap[log.row_id] || c.name || 'an event';
+      if (action === 'INSERT') return `Added event: ${name}`;
+      if (action === 'DELETE') return `Deleted event: ${name}`;
+      return `Updated event: ${name}`;
+    }
+    if (t === 'fighters') {
+      const name = fighterMap[log.row_id] || c.name || 'a fighter';
+      if (action === 'INSERT') return `Added fighter: ${name}`;
+      if (action === 'DELETE') return `Deleted fighter: ${name}`;
+      return `Updated fighter: ${name}`;
+    }
+    return `${action} on ${t}`;
+  }
+
+  el.innerHTML = logs.map(log => `
+    <div class="activity-row">
+      <span class="activity-desc">${escHtml(describe(log))}</span>
+      <span class="activity-time">${relativeTime(log.logged_at)}</span>
+    </div>
+  `).join('');
 }
 
 function renderMethodChart() {
@@ -151,6 +243,42 @@ function renderMethodChart() {
   if (methodChartInst) { methodChartInst.destroy(); methodChartInst = null; }
   if (!labels.length) return;
   methodChartInst = new Chart(ctx, {type:'doughnut',data:{labels,datasets:[{data,backgroundColor:colors.slice(0,labels.length),borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}}}});
+}
+
+function renderRatingChart() {
+  // Buckets: 0.5, 1.0, 1.5, ..., 5.0
+  const buckets = [];
+  for (let v = 0.5; v <= 5; v += 0.5) buckets.push(v);
+  const counts = buckets.map(v => myRatings.filter(f => f.rating === v).length);
+  const labels = buckets.map(v => v.toString());
+
+  const ctx = document.getElementById('ratingChart');
+  if (!ctx) return;
+  if (ratingChartInst) { ratingChartInst.destroy(); ratingChartInst = null; }
+  if (!counts.some(c => c > 0)) return;
+
+  const isDark = document.body.classList.contains('dark');
+  ratingChartInst = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        data: counts,
+        backgroundColor: '#E24B4A',
+        borderRadius: 4,
+        borderSkipped: false
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { callbacks: { title: items => items[0].label + ' ★' } } },
+      scales: {
+        x: { title: { display: true, text: 'Rating', color: isDark ? '#999' : '#666' }, grid: { display: false }, ticks: { color: isDark ? '#999' : '#666' } },
+        y: { title: { display: true, text: 'Fights', color: isDark ? '#999' : '#666' }, beginAtZero: true, ticks: { precision: 0, color: isDark ? '#999' : '#666' }, grid: { color: isDark ? '#2a2a2a' : '#f0ede8' } }
+      }
+    }
+  });
 }
 
 function renderWcBars() {
@@ -174,54 +302,107 @@ function fighterFightTime(f) {
   return f.round * 5 * 60;
 }
 
-function renderFighters() {
-  const q = (document.getElementById('fighter-search').value||'').toLowerCase();
-  const wc = (document.getElementById('fighter-filter-wc')?.value) || '';
-  const sortBy = (document.getElementById('fighter-sort')?.value) || 'fights';
-
-  // Build fighter map — optionally filter source ratings by division
+function renderLeaderboard() {
+  const wc = (document.getElementById('leaderboard-wc')?.value) || '';
   const source = wc ? myRatings.filter(f => f.weight_class === wc) : myRatings;
+
   const map = {};
   source.forEach(f => {
-    [{name: f.fighter1_name, id: f.fighter1_id}, {name: f.fighter2_name, id: f.fighter2_id}].filter(x => x.name).forEach(fighter => {
-      if (!map[fighter.name]) map[fighter.name] = {name: fighter.name, id: fighter.id, fights:0, wins:0, ratings:[], methods:{}, timeSec:0};
-      const entry = map[fighter.name];
-      if (fighter.id) entry.id = fighter.id;
-      entry.fights++;
-      entry.timeSec += fighterFightTime(f);
-      if (f.winner_name === fighter.name) entry.wins++;
-      if (f.rating) entry.ratings.push(f.rating);
-      if (f.method) entry.methods[f.method]=(entry.methods[f.method]||0)+1;
-    });
+    const hasRank = !!(f.fighter1_rank || f.fighter2_rank);
+    [{name: f.fighter1_name, id: f.fighter1_id}, {name: f.fighter2_name, id: f.fighter2_id}]
+      .filter(x => x.name).forEach(fighter => {
+        if (!map[fighter.name]) map[fighter.name] = {name: fighter.name, id: fighter.id, fights:0, wins:0, losses:0, decisionWins:0, finishWins:0, koWins:0, subWins:0, timeSec:0, ratings:[], rankedFights:0};
+        const e = map[fighter.name];
+        if (fighter.id) e.id = fighter.id;
+        e.fights++;
+        e.timeSec += fighterFightTime(f);
+        if (hasRank) e.rankedFights++;
+        if (f.rating) e.ratings.push(f.rating);
+        if (f.winner_name === fighter.name) {
+          e.wins++;
+          const ml = (f.method || '').toLowerCase();
+          if (ml.includes('decision') || ml.includes('dec')) e.decisionWins++;
+          else if (ml.includes('ko') || ml.includes('tko')) { e.finishWins++; e.koWins++; }
+          else if (ml.includes('submission') || ml.includes('sub')) { e.finishWins++; e.subWins++; }
+        } else if (f.winner_name && f.winner_name !== fighter.name) {
+          e.losses++;
+        }
+      });
   });
 
-  // Compute avg for sorting
-  const withAvg = Object.values(map).map(f => {
+  Object.values(map).forEach(f => {
     f.avgRating = f.ratings.length ? f.ratings.reduce((a,b)=>a+b,0)/f.ratings.length : 0;
-    return f;
   });
 
-  // Filter by search
-  let list = withAvg.filter(f => !q || f.name.toLowerCase().includes(q));
+  const all = Object.values(map);
 
-  // Sort
-  if (sortBy === 'wins') list.sort((a,b) => b.wins - a.wins || b.fights - a.fights);
-  else if (sortBy === 'time') list.sort((a,b) => b.timeSec - a.timeSec);
-  else if (sortBy === 'rating') list.sort((a,b) => b.avgRating - a.avgRating || b.fights - a.fights);
-  else list.sort((a,b) => b.fights - a.fights);
+  function renderList(elId, sorted, valueFn) {
+    const el = document.getElementById(elId);
+    const filtered = sorted.filter(f => valueFn(f) > 0).slice(0, 10);
+    if (!filtered.length) { el.innerHTML = '<div class="empty" style="padding:12px 0">—</div>'; return; }
+    el.innerHTML = filtered.map((f, i) => `
+      <div class="lb-row">
+        <span class="lb-rank">${i + 1}</span>
+        <button class="nav-link lb-name" onclick="navToFighter('${f.id}','${f.name.replace(/'/g,"\\'")}')">${escHtml(f.name)}</button>
+        <span class="lb-val">${valueFn(f)}</span>
+      </div>`).join('');
+  }
 
-  const el = document.getElementById('fighter-list');
-  if (!list.length) { el.innerHTML='<div class="empty">No fighters found.</div>'; return; }
-  el.innerHTML = list.slice(0,30).map(f => {
-    const avgR = f.avgRating || null;
-    const topM = Object.entries(f.methods).sort((a,b)=>b[1]-a[1])[0];
-    return `<div class="fighter-card"><div class="fighter-name"><button class="nav-link" onclick="navToFighter('${f.id}','${f.name.replace(/'/g,"\\'")}')">${escHtml(f.name)}</button></div><div class="fighter-stats">
-      <div class="fs">Fights<span>${f.fights}</span></div>
-      <div class="fs">Wins<span>${f.wins}</span></div>
-      <div class="fs">Losses<span>${f.fights-f.wins}</span></div>
-      <div class="fs">Fight time<span>${formatFightTime(f.timeSec)}</span></div>
-      ${avgR?`<div class="fs">Avg rating<span>${avgR.toFixed(1)} ★</span></div>`:''}
-      ${topM?`<div class="fs">Top method<span>${topM[0]}</span></div>`:''}
-    </div></div>`;
-  }).join('');
+  renderList('lb-fights',    [...all].sort((a,b) => b.fights - a.fights),             f => f.fights);
+  renderList('lb-wins',      [...all].sort((a,b) => b.wins - a.wins),                 f => f.wins);
+  renderList('lb-decisions', [...all].sort((a,b) => b.decisionWins - a.decisionWins), f => f.decisionWins);
+  renderList('lb-finishes',  [...all].sort((a,b) => b.finishWins - a.finishWins),     f => f.finishWins);
+  renderList('lb-ko',        [...all].sort((a,b) => b.koWins - a.koWins),             f => f.koWins);
+  renderList('lb-sub',       [...all].sort((a,b) => b.subWins - a.subWins),           f => f.subWins);
+  renderList('lb-losses',    [...all].sort((a,b) => b.losses - a.losses),             f => f.losses);
+
+  // Highest rated fights (individual fights, not fighters)
+  const rankedEl = document.getElementById('lb-ranked');
+  const topFights = [...source]
+    .filter(f => f.rating && f.fighter1_name && f.fighter2_name)
+    .sort((a,b) => b.rating - a.rating)
+    .slice(0, 10);
+  if (!topFights.length) { rankedEl.innerHTML = '<div class="empty" style="padding:12px 0">—</div>'; }
+  else {
+    rankedEl.innerHTML = topFights.map((f, i) => `
+      <div class="lb-row">
+        <span class="lb-rank">${i + 1}</span>
+        <button class="nav-link lb-name" onclick="navToEvent('${f.event_id}')" title="${escHtml(f.fighter1_name)} vs ${escHtml(f.fighter2_name)}">${escHtml(f.fighter1_name)} vs ${escHtml(f.fighter2_name)}</button>
+        <span class="lb-val">${f.rating} ★</span>
+      </div>`).join('');
+  }
+
+  function renderCustom(elId, sorted, valueFn, formatFn) {
+    const el = document.getElementById(elId);
+    const filtered = sorted.filter(f => valueFn(f) > 0).slice(0, 10);
+    if (!filtered.length) { el.innerHTML = '<div class="empty" style="padding:12px 0">—</div>'; return; }
+    el.innerHTML = filtered.map((f, i) => `
+      <div class="lb-row">
+        <span class="lb-rank">${i + 1}</span>
+        <button class="nav-link lb-name" onclick="navToFighter('${f.id}','${f.name.replace(/'/g,"\\'")}')">${escHtml(f.name)}</button>
+        <span class="lb-val">${formatFn(f)}</span>
+      </div>`).join('');
+  }
+
+  renderCustom('lb-time',
+    [...all].sort((a,b) => b.timeSec - a.timeSec),
+    f => f.timeSec,
+    f => formatFightTime(f.timeSec));
+
+  renderCustom('lb-rating',
+    all.filter(f => f.ratings.length >= 3).sort((a,b) => b.avgRating - a.avgRating),
+    f => f.avgRating,
+    f => f.avgRating.toFixed(2) + ' ★');
+
+  const lowEl = document.getElementById('lb-rating-low');
+  const lowSorted = all.filter(f => f.ratings.length >= 3).sort((a,b) => a.avgRating - b.avgRating).slice(0, 10);
+  if (!lowSorted.length) { lowEl.innerHTML = '<div class="empty" style="padding:12px 0">—</div>'; }
+  else {
+    lowEl.innerHTML = lowSorted.map((f, i) => `
+      <div class="lb-row">
+        <span class="lb-rank">${i + 1}</span>
+        <button class="nav-link lb-name" onclick="navToFighter('${f.id}','${f.name.replace(/'/g,"\\'")}')">${escHtml(f.name)}</button>
+        <span class="lb-val">${f.avgRating.toFixed(2)} ★</span>
+      </div>`).join('');
+  }
 }

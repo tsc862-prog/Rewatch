@@ -50,6 +50,7 @@ let myRatings = [];
 let selectedFight = null;
 let currentRating = 0;
 let methodChartInst = null;
+let ratingChartInst = null;
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
 let currentUser = null;

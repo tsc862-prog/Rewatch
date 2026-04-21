@@ -313,17 +313,32 @@ function renderFightRow(fight, opts) {
 
   eventFightRatings.set(fight.id, { rating: currentVal });
 
-  const resultHtml = isRated
+  const eventDateStr = fight.event_date || (currentEvent && currentEvent.date) || null;
+  const eventDateParsed = eventDateStr ? new Date(eventDateStr) : null;
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const isFuture = eventDateParsed && !isNaN(eventDateParsed) && eventDateParsed > today;
+
+  const hasVideo = !!(fight.paramount_url || (currentEvent && currentEvent.paramount_url));
+  const showResult = !isFuture && (isRated || !hasVideo);
+
+  const resultHtml = showResult
     ? `<div class="fight-row-result revealed">
         ${fight.winner_name ? `<span><strong>W:</strong> ${escHtml(fight.winner_name)}</span>` : '<span>Draw / NC</span>'}
         ${fight.method ? `<span>${escHtml(fight.method)}</span>` : ''}
         ${fight.round ? `<span>R${fight.round}${fight.time ? ' · '+fight.time : ''}</span>` : ''}
         ${fight.details && !fight.details.includes('|') ? `<span class="fight-details">${escHtml(fight.details)}</span>` : ''}
       </div>`
-    : `<div class="fight-row-result spoiler">Rate this fight to reveal the result</div>`;
+    : `<div class="fight-row-result spoiler">Rate to reveal result</div>`;
+
+  let wlClass = '';
+  if (showResult && currentFighter && fight.winner_name) {
+    wlClass = fight.winner_name === currentFighter.name ? 'fight-win' : 'fight-loss';
+  } else if (showResult && currentFighter && !fight.winner_name) {
+    wlClass = 'fight-draw';
+  }
 
   return `
-    <div class="fight-row ${isRated ? 'rated' : ''}" id="fight-row-${fight.id}">
+    <div class="fight-row ${isRated ? 'rated' : ''} ${wlClass}" id="fight-row-${fight.id}">
       <div class="fight-row-top">
         <div>
           ${fight.fight_position_type ? '<span class="pos-type-tag pos-'+slugPosType(fight.fight_position_type)+'">'+escHtml(fight.fight_position_type)+'</span> · ' : ''}
@@ -335,19 +350,19 @@ function renderFightRow(fight, opts) {
         ${fight.paramount_url ? `<a class="btn btn-paramount btn-sm" href="${escHtml(fight.paramount_url)}" target="_blank" rel="noopener">▶ Watch</a>` : ''}
       </div>
       </div>
-      <div class="fight-row-matchup">${fight.fighter1_rank ? '<span class="rank-tag">#'+escHtml(fight.fighter1_rank)+'</span> ' : ''}<button class="nav-link" onclick="navToFighter('${fight.fighter1_id}','${(fight.fighter1_name||'').replace(/'/g,"\\'")}')">${escHtml(fight.fighter1_name)}</button>${fight.fighter1_is_debut ? ' <span class="debut-tag">DEBUT</span>' : ''}${f1rec ? ' <span class="fighter-record">('+f1rec+')</span>' : ''} vs ${fight.fighter2_rank ? '<span class="rank-tag">#'+escHtml(fight.fighter2_rank)+'</span> ' : ''}<button class="nav-link" onclick="navToFighter('${fight.fighter2_id}','${(fight.fighter2_name||'').replace(/'/g,"\\'")}')">${escHtml(fight.fighter2_name)}</button>${fight.fighter2_is_debut ? ' <span class="debut-tag">DEBUT</span>' : ''}${f2rec ? ' <span class="fighter-record">('+f2rec+')</span>' : ''}</div>
+      <div class="fight-row-matchup-line">
+        <div class="fight-row-matchup">${fight.fighter1_rank ? '<span class="rank-tag">#'+escHtml(fight.fighter1_rank)+'</span> ' : ''}<button class="nav-link" onclick="navToFighter('${fight.fighter1_id}','${(fight.fighter1_name||'').replace(/'/g,"\\'")}')">${escHtml(fight.fighter1_name)}</button>${fight.fighter1_is_debut ? ' <span class="debut-tag">DEBUT</span>' : ''}${f1rec ? ' <span class="fighter-record">('+f1rec+')</span>' : ''} vs ${fight.fighter2_rank ? '<span class="rank-tag">#'+escHtml(fight.fighter2_rank)+'</span> ' : ''}<button class="nav-link" onclick="navToFighter('${fight.fighter2_id}','${(fight.fighter2_name||'').replace(/'/g,"\\'")}')">${escHtml(fight.fighter2_name)}</button>${fight.fighter2_is_debut ? ' <span class="debut-tag">DEBUT</span>' : ''}${f2rec ? ' <span class="fighter-record">('+f2rec+')</span>' : ''}</div>
+        ${isFuture
+          ? '<span class="upcoming-tag">Upcoming</span>'
+          : `<div class="fight-row-controls">
+              <div class="fight-row-stars" id="stars-${fight.id}" onmouseleave="hoverFightStars('${fight.id}',0)">${buildClickableStars(fight.id, currentVal, 17)}</div>
+            </div>
+            <div id="result-${fight.id}" class="fight-row-result-wrap">${resultHtml}</div>`}
+      </div>
       ${opts.showEvent && fight.event_name ? '<div class="fight-row-event-meta"><button class="nav-link" onclick="navToEvent(\''+fight.event_id+'\')">'+escHtml(fight.event_name)+'</button>'+(fight.event_date?' · '+fight.event_date:'')+'</div>' : ''}
       ${fight.notes ? '<div class="fight-row-notes-info">'+escHtml(fight.notes)+'</div>' : ''}
-      <div class="fight-row-bottom">
-        <div class="fight-row-controls">
-          <div class="fight-row-stars" id="stars-${fight.id}" onmouseleave="hoverFightStars('${fight.id}',0)">${buildClickableStars(fight.id, currentVal, 17)}</div>
-          <span class="fight-row-rating-lbl" id="star-lbl-${fight.id}">${currentVal ? currentVal+'/5' : '—'}</span>
-          ${fightAggregates.has(fight.id) ? `<span class="community-avg" title="Community average across ${fightAggregates.get(fight.id).count} rating${fightAggregates.get(fight.id).count!==1?'s':''}">avg ${fightAggregates.get(fight.id).avg} <span class="community-count">· ${fightAggregates.get(fight.id).count}</span></span>` : ''}
-        </div>
-        <div id="result-${fight.id}">${resultHtml}</div>
-      </div>
-      <input class="fight-row-notes" id="notes-${fight.id}" type="text" placeholder="Notes…" value="${escHtml(notes)}"
-        onblur="saveNotes('${fight.id}')">
+      ${!isFuture ? `<input class="fight-row-notes" id="notes-${fight.id}" type="text" placeholder="Notes…" value="${escHtml(notes)}"
+        onblur="saveNotes('${fight.id}')">` : ''}
     </div>`;
 }
 
@@ -414,7 +429,7 @@ function hoverFightStars(fightId, val) {
   const d = val || (state ? state.rating : 0);
   el.querySelectorAll('.fight-star').forEach((s, idx) => {
     const i = idx + 1;
-    s.innerHTML = starSVG(d >= i ? 'full' : d >= i - 0.5 ? 'half' : 'empty', 20);
+    s.innerHTML = starSVG(d >= i ? 'full' : d >= i - 0.5 ? 'half' : 'empty', 17);
   });
   const lbl = document.getElementById('star-lbl-' + fightId);
   if (lbl) lbl.textContent = d ? d + '/5' : '—';
@@ -431,6 +446,14 @@ function setFightRating(fightId, val) {
   saveFightRating(fightId);
 }
 
+function expandNoteShorthands(text, fightId) {
+  const fight = currentEventFights.find(f => f.id === fightId) || currentFighterFights.find(f => f.id === fightId);
+  if (!fight) return text;
+  return text
+    .replace(/\bF1\b/g, fight.fighter1_name || 'F1')
+    .replace(/\bF2\b/g, fight.fighter2_name || 'F2');
+}
+
 // ── Auto-Save ────────────────────────────────────────────────────────────────
 
 async function saveFightRating(fightId) {
@@ -440,7 +463,9 @@ async function saveFightRating(fightId) {
   savingFights.add(fightId);
 
   const notesEl = document.getElementById('notes-' + fightId);
-  const notesVal = notesEl ? notesEl.value.trim() : '';
+  const notesRaw = notesEl ? notesEl.value.trim() : '';
+  const notesVal = expandNoteShorthands(notesRaw, fightId);
+  if (notesEl && notesVal !== notesRaw) notesEl.value = notesVal;
 
   const entry = {
     fight_id:  fightId,
@@ -481,29 +506,27 @@ async function saveFightRating(fightId) {
   loadFightAggregates();
 }
 
-// Save notes on blur
+// Save notes on blur — delayed slightly so star clicks register first
 async function saveNotes(fightId) {
+  await new Promise(r => setTimeout(r, 150));
+  if (savingFights.has(fightId)) return;
+
   const notesEl = document.getElementById('notes-' + fightId);
-  const notesVal = notesEl ? notesEl.value.trim() : '';
-  if (!notesVal) return;
-  if (!currentUser) { requireAuth('save notes'); return; }
+  const notesRaw = notesEl ? notesEl.value.trim() : '';
+  const notesVal = expandNoteShorthands(notesRaw, fightId);
+  if (notesEl && notesVal !== notesRaw) notesEl.value = notesVal;
+  if (!notesVal && !myRatings.find(x => x.fight_id === fightId)) return;
 
   const existing = myRatings.find(x => x.fight_id === fightId);
-
-  // No change
   if (existing && (existing.notes || '') === notesVal) return;
-  // Nothing to save
-  if (!existing && !notesVal) return;
 
   let error;
   if (existing) {
     ({ error } = await sb.from('ratings').update({ notes: notesVal || null }).eq('fight_id', fightId));
     if (!error) existing.notes = notesVal || null;
   } else {
-    const inEventCtx = currentEventFights.some(f => f.id === fightId);
-    const fight = inEventCtx
-      ? currentEventFights.find(f => f.id === fightId)
-      : currentFighterFights.find(f => f.id === fightId);
+    if (!currentUser) return;
+    const fight = currentEventFights.find(f => f.id === fightId) || currentFighterFights.find(f => f.id === fightId);
     const entry = { fight_id: fightId, user_id: currentUser.id, rating: null, notes: notesVal, logged_at: Date.now() };
     ({ error } = await sb.from('ratings').insert(entry));
     if (!error) myRatings.unshift({ ...fight, ...entry });
