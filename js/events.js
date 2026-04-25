@@ -318,7 +318,8 @@ function renderFightRow(fight, opts) {
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const isFuture = eventDateParsed && !isNaN(eventDateParsed) && eventDateParsed > today;
 
-  const hasVideo = !!(fight.paramount_url || (currentEvent && currentEvent.paramount_url));
+  const eventVideo = !currentFighter && currentEvent && currentEvent.paramount_url;
+  const hasVideo = !!(fight.paramount_url || eventVideo);
   const showResult = !isFuture && (isRated || !hasVideo);
 
   const resultHtml = showResult
