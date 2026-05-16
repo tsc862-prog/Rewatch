@@ -308,9 +308,6 @@ function renderFightRow(fight, opts) {
   const isRated = !!(rating && rating.rating);
   const currentVal = isRated ? rating.rating : 0;
   const notes = rating ? (rating.notes || '') : '';
-  const f1rec = getFighterRecord(fight.fighter1_name, fight.event_date);
-  const f2rec = getFighterRecord(fight.fighter2_name, fight.event_date);
-
   eventFightRatings.set(fight.id, { rating: currentVal });
 
   const eventDateStr = fight.event_date || (currentEvent && currentEvent.date) || null;
@@ -321,6 +318,19 @@ function renderFightRow(fight, opts) {
   const eventVideo = !currentFighter && currentEvent && currentEvent.paramount_url;
   const hasVideo = !!(fight.paramount_url || eventVideo);
   const showResult = !isFuture && (isRated || !hasVideo);
+
+  // Randomize display order (deterministic per fight id) to avoid spoiling winner
+  const swapOrder = !showResult && fight.id && (fight.id.charCodeAt(0) + fight.id.charCodeAt(fight.id.length - 1)) % 2 === 1;
+  const dF1 = swapOrder ? fight.fighter2_name : fight.fighter1_name;
+  const dF2 = swapOrder ? fight.fighter1_name : fight.fighter2_name;
+  const dF1id = swapOrder ? fight.fighter2_id : fight.fighter1_id;
+  const dF2id = swapOrder ? fight.fighter1_id : fight.fighter2_id;
+  const dF1rank = swapOrder ? fight.fighter2_rank : fight.fighter1_rank;
+  const dF2rank = swapOrder ? fight.fighter1_rank : fight.fighter2_rank;
+  const dF1debut = swapOrder ? fight.fighter2_is_debut : fight.fighter1_is_debut;
+  const dF2debut = swapOrder ? fight.fighter1_is_debut : fight.fighter2_is_debut;
+  const f1rec = getFighterRecord(dF1, fight.event_date);
+  const f2rec = getFighterRecord(dF2, fight.event_date);
 
   const resultHtml = showResult
     ? `<div class="fight-row-result revealed">
@@ -352,7 +362,7 @@ function renderFightRow(fight, opts) {
       </div>
       </div>
       <div class="fight-row-matchup-line">
-        <div class="fight-row-matchup">${fight.fighter1_rank ? '<span class="rank-tag">#'+escHtml(fight.fighter1_rank)+'</span> ' : ''}<button class="nav-link" onclick="navToFighter('${fight.fighter1_id}','${(fight.fighter1_name||'').replace(/'/g,"\\'")}')">${escHtml(fight.fighter1_name)}</button>${fight.fighter1_is_debut ? ' <span class="debut-tag">DEBUT</span>' : ''}${f1rec ? ' <span class="fighter-record">('+f1rec+')</span>' : ''} vs ${fight.fighter2_rank ? '<span class="rank-tag">#'+escHtml(fight.fighter2_rank)+'</span> ' : ''}<button class="nav-link" onclick="navToFighter('${fight.fighter2_id}','${(fight.fighter2_name||'').replace(/'/g,"\\'")}')">${escHtml(fight.fighter2_name)}</button>${fight.fighter2_is_debut ? ' <span class="debut-tag">DEBUT</span>' : ''}${f2rec ? ' <span class="fighter-record">('+f2rec+')</span>' : ''}</div>
+        <div class="fight-row-matchup">${dF1rank ? '<span class="rank-tag">#'+escHtml(dF1rank)+'</span> ' : ''}<button class="nav-link" onclick="navToFighter('${dF1id}','${(dF1||'').replace(/'/g,"\\'")}')">${escHtml(dF1)}</button>${dF1debut ? ' <span class="debut-tag">DEBUT</span>' : ''}${f1rec ? ' <span class="fighter-record">('+f1rec+')</span>' : ''} vs ${dF2rank ? '<span class="rank-tag">#'+escHtml(dF2rank)+'</span> ' : ''}<button class="nav-link" onclick="navToFighter('${dF2id}','${(dF2||'').replace(/'/g,"\\'")}')">${escHtml(dF2)}</button>${dF2debut ? ' <span class="debut-tag">DEBUT</span>' : ''}${f2rec ? ' <span class="fighter-record">('+f2rec+')</span>' : ''}</div>
         ${isFuture
           ? '<span class="upcoming-tag">Upcoming</span>'
           : `<div class="fight-row-controls">

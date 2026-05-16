@@ -136,7 +136,6 @@ function renderDashboard() {
   document.getElementById('d-time').textContent = formatFightTime(calcTotalFightTime());
   renderMethodChart();
   renderWcBars();
-  renderRatingChart();
   renderLeaderboard();
   renderActivityFeed();
 }
@@ -245,52 +244,23 @@ function renderMethodChart() {
   methodChartInst = new Chart(ctx, {type:'doughnut',data:{labels,datasets:[{data,backgroundColor:colors.slice(0,labels.length),borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}}}});
 }
 
-function renderRatingChart() {
-  // Buckets: 0.5, 1.0, 1.5, ..., 5.0
-  const buckets = [];
-  for (let v = 0.5; v <= 5; v += 0.5) buckets.push(v);
-  const counts = buckets.map(v => myRatings.filter(f => f.rating === v).length);
-  const labels = buckets.map(v => v.toString());
-
-  const ctx = document.getElementById('ratingChart');
-  if (!ctx) return;
-  if (ratingChartInst) { ratingChartInst.destroy(); ratingChartInst = null; }
-  if (!counts.some(c => c > 0)) return;
-
-  const isDark = document.body.classList.contains('dark');
-  ratingChartInst = new Chart(ctx, {
-    type: 'bar',
-    data: {
-      labels,
-      datasets: [{
-        data: counts,
-        backgroundColor: '#E24B4A',
-        borderRadius: 4,
-        borderSkipped: false
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: { legend: { display: false }, tooltip: { callbacks: { title: items => items[0].label + ' ★' } } },
-      scales: {
-        x: { title: { display: true, text: 'Rating', color: isDark ? '#999' : '#666' }, grid: { display: false }, ticks: { color: isDark ? '#999' : '#666' } },
-        y: { title: { display: true, text: 'Fights', color: isDark ? '#999' : '#666' }, beginAtZero: true, ticks: { precision: 0, color: isDark ? '#999' : '#666' }, grid: { color: isDark ? '#2a2a2a' : '#f0ede8' } }
-      }
-    }
-  });
-}
 
 function renderWcBars() {
-  const counts = {};
-  myRatings.forEach(f => { if(f.weight_class) counts[f.weight_class]=(counts[f.weight_class]||0)+1; });
-  const sorted = Object.entries(counts).sort((a,b)=>b[1]-a[1]);
-  const max = sorted.length ? sorted[0][1] : 1;
-  const el  = document.getElementById('wc-bars');
+  const stats = {};
+  myRatings.forEach(f => {
+    if (!f.weight_class) return;
+    if (!stats[f.weight_class]) stats[f.weight_class] = { count: 0, total: 0, rated: 0 };
+    stats[f.weight_class].count++;
+    if (f.rating) { stats[f.weight_class].total += f.rating; stats[f.weight_class].rated++; }
+  });
+  const sorted = Object.entries(stats).sort((a,b) => b[1].count - a[1].count);
+  const max = sorted.length ? sorted[0][1].count : 1;
+  const el = document.getElementById('wc-bars');
   if (!sorted.length) { el.innerHTML='<div class="empty">No data yet.</div>'; return; }
-  el.innerHTML = sorted.map(([wc,n]) =>
-    `<div class="wc-row"><div class="wc-name" title="${wc}">${wc}</div><div class="wc-bar-bg"><div class="wc-bar-fill" style="width:${Math.round(n/max*100)}%"></div></div><div class="wc-n">${n}</div></div>`
-  ).join('');
+  el.innerHTML = sorted.map(([wc, s]) => {
+    const avg = s.rated ? (s.total / s.rated).toFixed(1) : '—';
+    return `<div class="wc-row"><div class="wc-name" title="${wc}">${wc}</div><div class="wc-bar-bg"><div class="wc-bar-fill" style="width:${Math.round(s.count/max*100)}%"></div></div><div class="wc-n">${s.count}</div><div class="wc-avg">${avg} ★</div></div>`;
+  }).join('');
 }
 
 function fighterFightTime(f) {

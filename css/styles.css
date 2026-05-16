@@ -106,7 +106,8 @@ tr:hover td{background:#fafaf8}
 .wc-name{width:140px;font-size:13px;font-weight:500;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .wc-bar-bg{flex:1;height:6px;background:#f0ede8;border-radius:4px;overflow:hidden}
 .wc-bar-fill{height:100%;background:#E24B4A;border-radius:4px;transition:width 0.4s ease-out}
-.wc-n{font-size:12px;color:#bbb;width:44px;text-align:right;flex-shrink:0}
+.wc-n{font-size:12px;color:#bbb;width:30px;text-align:right;flex-shrink:0}
+.wc-avg{font-size:11px;color:#E24B4A;font-weight:600;width:44px;text-align:right;flex-shrink:0}
 
 /* ── Fighter Stats Cards ────────────────────────────────────────────────────── */
 .fighter-card{background:#fafaf8;border:1.5px solid #f0ede8;border-radius:12px;padding:1rem;margin-bottom:8px;transition:all 0.15s}
@@ -365,6 +366,7 @@ body.dark .b-nc{background:#252525;color:#888}
 body.dark .wc-row{border-bottom-color:#222}
 body.dark .wc-bar-bg{background:#252525}
 body.dark .wc-n{color:#666}
+body.dark .wc-avg{color:#e05555}
 
 /* Fighter Cards */
 body.dark .fighter-card{background:#1a1a1a;border-color:#2a2a2a}
