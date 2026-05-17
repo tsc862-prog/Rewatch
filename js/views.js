@@ -87,7 +87,7 @@ function renderTable() {
     return `<tr class="ratings-row${hasNotes ? ' has-notes' : ''}">
       <td title="${f.fighter1_name||''}"><button class="nav-link" onclick="navToFighter('${f.fighter1_id}','${(f.fighter1_name||'').replace(/'/g,"\\'")}')">${f.fighter1_name||''}</button>${f.winner_name===f.fighter1_name?' <span style="color:#E24B4A;font-size:10px;font-weight:700">W</span>':''}</td>
       <td title="${f.fighter2_name||''}"><button class="nav-link" onclick="navToFighter('${f.fighter2_id}','${(f.fighter2_name||'').replace(/'/g,"\\'")}')">${f.fighter2_name||''}</button>${f.winner_name===f.fighter2_name?' <span style="color:#E24B4A;font-size:10px;font-weight:700">W</span>':''}</td>
-      <td title="${f.event_name||''}"><button class="nav-link" onclick="navToEvent('${f.event_id}')">${f.event_name||'—'}</button></td>
+      <td title="${f.event_name||''}">${orgBadge(f.event_organization)}<button class="nav-link" onclick="navToEvent('${f.event_id}')">${f.event_name||'—'}</button></td>
       <td>${f.event_date||'—'}</td>
       <td title="${f.weight_class||''}">${f.weight_class||'—'}${f.is_title?' <span class="title-tag">🏆</span>':''}</td>
       <td>${methodBadge(f.method)}</td>
@@ -245,13 +245,19 @@ function renderMethodChart() {
 }
 
 
+function normalizeWeightClass(wc) {
+  if (!wc) return wc;
+  return /catch\s*weight/i.test(wc) ? 'Catchweight' : wc;
+}
+
 function renderWcBars() {
   const stats = {};
   myRatings.forEach(f => {
     if (!f.weight_class) return;
-    if (!stats[f.weight_class]) stats[f.weight_class] = { count: 0, total: 0, rated: 0 };
-    stats[f.weight_class].count++;
-    if (f.rating) { stats[f.weight_class].total += f.rating; stats[f.weight_class].rated++; }
+    const wc = normalizeWeightClass(f.weight_class);
+    if (!stats[wc]) stats[wc] = { count: 0, total: 0, rated: 0 };
+    stats[wc].count++;
+    if (f.rating) { stats[wc].total += f.rating; stats[wc].rated++; }
   });
   const sorted = Object.entries(stats).sort((a,b) => b[1].count - a[1].count);
   const max = sorted.length ? sorted[0][1].count : 1;

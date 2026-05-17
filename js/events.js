@@ -9,29 +9,29 @@ const RECENT_EVENTS_PAGE_SIZE = 10;
 // ── Recent Events List ───────────────────────────────────────────────────────
 
 // Cached data for the recent events list (populated once on load)
-let recentEventsUrlCount = {}; // event_id → count of fights with paramount_url
 let upcomingEventsList = [];
+let eventsWithFightVideo = new Set(); // event IDs with at least one fight-level video link
+
+// True if the event has a video link at event level or on any of its fights
+function hasAnyVideo(evt) {
+  return eventHasVideo(evt) || (evt && eventsWithFightVideo.has(evt.id));
+}
 
 async function loadRecentEvents() {
   const el = document.getElementById('recent-events');
   if (!el) return;
 
-  // Fetch all event IDs that have at least one result, plus fight-level URL counts
+  // Fetch all event IDs that have at least one result, plus fight-level video links
   const { data: fightRows } = await sb
     .from('fight_search')
-    .select('event_id,paramount_url')
+    .select('event_id,paramount_url,youtube_url')
     .not('method', 'is', null)
     .limit(10000);
 
   if (!fightRows?.length) { el.style.display = 'none'; return; }
 
   const idsWithResults = new Set(fightRows.map(f => f.event_id).filter(Boolean));
-
-  // Count fights with a paramount_url per event
-  recentEventsUrlCount = {};
-  fightRows.forEach(f => {
-    if (f.event_id && f.paramount_url) recentEventsUrlCount[f.event_id] = (recentEventsUrlCount[f.event_id] || 0) + 1;
-  });
+  eventsWithFightVideo = new Set(fightRows.filter(f => f.event_id && (f.paramount_url || f.youtube_url)).map(f => f.event_id));
 
   // Fetch all events then sort client-side — avoids relying on DB text-date ordering
   const { data: allEvents } = await sb.from('events').select('*').limit(5000);
@@ -72,7 +72,6 @@ function renderUpcomingEvents() {
     <div class="upcoming-events-label">Upcoming</div>
     ${upcomingEventsList.map((evt, i) => {
       const isToday = new Date(evt.date).setHours(0,0,0,0) === todayTs;
-      const urlCount = recentEventsUrlCount[evt.id] || 0;
       return `
         <div class="upcoming-event-row${isToday ? ' today' : ''}" onclick="selectEvent(upcomingEventsList[${i}])">
           <div class="upcoming-event-date-block">
@@ -80,12 +79,8 @@ function renderUpcomingEvents() {
             <div class="upcoming-event-day">${isToday ? '★' : formatUpcomingDay(evt.date)}</div>
           </div>
           <div class="upcoming-event-info">
-            <div class="upcoming-event-name">${escHtml(evt.name)}</div>
+            <div class="upcoming-event-name">${orgBadge(evt.organization)}${escHtml(evt.name)}</div>
             ${evt.location ? `<div class="upcoming-event-meta">${escHtml(evt.location)}</div>` : ''}
-            ${evt.paramount_url || urlCount ? `<div class="upcoming-event-links">
-              ${evt.paramount_url ? `<a class="recent-event-p" href="${escHtml(evt.paramount_url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">▶ Full event</a>` : ''}
-              ${urlCount ? `<span class="recent-event-p-count">▶ ${urlCount} fight${urlCount !== 1 ? 's' : ''}</span>` : ''}
-            </div>` : ''}
           </div>
           <span class="recent-event-chevron">›</span>
         </div>`;
@@ -123,19 +118,17 @@ function renderRecentEventsList() {
     ${pageEvents.map((evt, i) => {
       const globalIdx = start + i;
       const ratedCount = ratedByEvent[evt.id] || 0;
-      const urlCount = recentEventsUrlCount[evt.id] || 0;
       return `
         <div class="recent-event-row" onclick="selectEvent(recentEventsList[${globalIdx}])">
           <div class="recent-event-left">
-            <div class="recent-event-name">${escHtml(evt.name)}</div>
+            <div class="recent-event-name">${orgBadge(evt.organization)}${escHtml(evt.name)}</div>
             <div class="recent-event-meta">
               ${evt.date || '—'}${evt.location ? ' · ' + escHtml(evt.location) : ''}
             </div>
           </div>
           <div class="recent-event-right">
+            ${hasAnyVideo(evt) ? '<span class="video-dot" title="Video available">▶</span>' : ''}
             ${ratedCount ? `<span class="recent-event-rated">${ratedCount} rated</span>` : ''}
-            ${evt.paramount_url ? `<a class="recent-event-p" href="${escHtml(evt.paramount_url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">▶ Full event</a>` : ''}
-            ${urlCount ? `<span class="recent-event-p-count">▶ ${urlCount} fight${urlCount !== 1 ? 's' : ''}</span>` : ''}
             <span class="recent-event-chevron">›</span>
           </div>
         </div>`;
@@ -201,17 +194,15 @@ function renderEventSearchResults(q) {
     <div class="recent-events-label">Search results</div>
     ${data.map((evt, i) => {
       const ratedCount = ratedByEvent[evt.id] || 0;
-      const urlCount = recentEventsUrlCount[evt.id] || 0;
       return `
         <div class="recent-event-row" onclick="eventAcPick(event,${i})">
           <div class="recent-event-left">
-            <div class="recent-event-name">${hl(escHtml(evt.name), ql)}</div>
+            <div class="recent-event-name">${orgBadge(evt.organization)}${hl(escHtml(evt.name), ql)}</div>
             <div class="recent-event-meta">${evt.date || '—'}${evt.location ? ' · ' + escHtml(evt.location) : ''}</div>
           </div>
           <div class="recent-event-right">
+            ${hasAnyVideo(evt) ? '<span class="video-dot" title="Video available">▶</span>' : ''}
             ${ratedCount ? `<span class="recent-event-rated">${ratedCount} rated</span>` : ''}
-            ${evt.paramount_url ? `<a class="recent-event-p" href="${escHtml(evt.paramount_url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">▶ Full event</a>` : ''}
-            ${urlCount ? `<span class="recent-event-p-count">▶ ${urlCount} fight${urlCount !== 1 ? 's' : ''}</span>` : ''}
             <span class="recent-event-chevron">›</span>
           </div>
         </div>`;
@@ -266,12 +257,12 @@ function renderEventCard() {
         <div>
           <div class="event-header-left">
             <button class="btn btn-outline btn-sm" onclick="closeEvent()">← ${navReturnContext && navReturnContext.type === 'fighter' ? escHtml(navReturnContext.data.name) : 'Back'}</button>
-            <span class="event-title">${escHtml(currentEvent.name)}</span>
+            <span class="event-title">${orgBadge(currentEvent.organization)}${escHtml(currentEvent.name)}</span>
           </div>
           <div class="event-meta">
             ${currentEvent.date ? `<span>${currentEvent.date}</span>` : ''}
             ${currentEvent.location ? `<span>${currentEvent.location}</span>` : ''}
-            ${currentEvent.paramount_url ? `<a class="btn btn-paramount btn-sm" href="${escHtml(currentEvent.paramount_url)}" target="_blank" rel="noopener">▶ Watch on Paramount+</a>` : ''}
+            ${eventWatchBtn(currentEvent)}
           </div>
         </div>
         <span class="event-progress" id="event-progress">${rated} / ${currentEventFights.length} rated</span>
@@ -315,8 +306,8 @@ function renderFightRow(fight, opts) {
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const isFuture = eventDateParsed && !isNaN(eventDateParsed) && eventDateParsed > today;
 
-  const eventVideo = !currentFighter && currentEvent && currentEvent.paramount_url;
-  const hasVideo = !!(fight.paramount_url || eventVideo);
+  const eventVideo = !currentFighter && eventHasVideo(currentEvent);
+  const hasVideo = !!(fight.paramount_url || fight.youtube_url || eventVideo);
   const showResult = !isFuture && (isRated || !hasVideo);
 
   // Randomize display order (deterministic per fight id) to avoid spoiling winner
@@ -357,8 +348,8 @@ function renderFightRow(fight, opts) {
           <span class="fight-row-wc">${escHtml(fight.weight_class || '—')}</span>
         </div>
         <div style="display:flex;align-items:center;gap:8px">
-        ${isRated ? '<span class="rated-check">✓ rated</span>' : ''}
-        ${fight.paramount_url ? `<a class="btn btn-paramount btn-sm" href="${escHtml(fight.paramount_url)}" target="_blank" rel="noopener">▶ Watch</a>` : ''}
+        ${fight.paramount_url ? `<a class="btn btn-paramount btn-sm" href="${escHtml(fight.paramount_url)}" target="_blank" rel="noopener">▶ Paramount+</a>` : ''}
+        ${fight.youtube_url ? `<a class="btn btn-youtube btn-sm" href="${escHtml(fight.youtube_url)}" target="_blank" rel="noopener">▶ YouTube</a>` : ''}
       </div>
       </div>
       <div class="fight-row-matchup-line">

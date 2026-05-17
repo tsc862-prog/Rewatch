@@ -40,7 +40,9 @@ header{display:flex;align-items:center;justify-content:space-between;margin-bott
 .btn-red:active{transform:scale(0.97);box-shadow:0 1px 2px rgba(226,75,74,0.3)}
 .btn-red:disabled{background:#e8a0a0;cursor:not-allowed;box-shadow:none;transform:none}
 .btn-outline{background:white;border:1.5px solid #e8e6e0;color:#555}.btn-outline:hover{background:#f8f7f5;border-color:#ccc}.btn-outline:active{transform:scale(0.97)}
-.btn-paramount{background:white;border:1.5px solid #b3c8e8;color:#1a5fa8;text-decoration:none;display:inline-flex;align-items:center}.btn-paramount:hover{background:#eef4fd;border-color:#1a5fa8}
+.btn-paramount{background:#0564FF;border:1.5px solid #0564FF;color:white;text-decoration:none;display:inline-flex;align-items:center}.btn-paramount:hover{background:#0450d0;border-color:#0450d0}
+.btn-paramount.espn{background:#CC0000;border-color:#CC0000;color:white}.btn-paramount.espn:hover{background:#a80000;border-color:#a80000}
+.btn-youtube{background:#FF0000;border:1.5px solid #FF0000;color:white;text-decoration:none;display:inline-flex;align-items:center}.btn-youtube:hover{background:#d40000;border-color:#d40000}
 .btn-sm{font-size:12px;padding:5px 12px}
 .btn-danger{background:transparent;border:1.5px solid #f0c0c0;color:#A32D2D;padding:3px 9px;border-radius:6px;font-size:11px;cursor:pointer;font-family:inherit}
 .btn-danger:hover{background:#FCEBEB}
@@ -62,6 +64,13 @@ header{display:flex;align-items:center;justify-content:space-between;margin-bott
 .pos-main-event{background:#FCEBEB;color:#791F1F}
 .pos-main-card{background:#E6F1FB;color:#0C447C}
 .pos-prelim{background:#F1EFE8;color:#555}
+
+/* ── Org Badges ─────────────────────────────────────────────────────────────── */
+.org-badge{display:inline-block;font-size:9px;font-weight:800;padding:2px 6px;border-radius:5px;letter-spacing:0.4px;margin-right:6px;vertical-align:middle;line-height:1.4}
+.org-ufc{background:#111827;color:#fff}
+.org-pfl{background:#F2682C;color:#fff}
+.org-mvp{background:#C9A227;color:#fff}
+.org-bellator{background:#1a5fa8;color:#fff}
 
 /* ── Stars ──────────────────────────────────────────────────────────────────── */
 .star-row{display:flex;align-items:center;gap:8px}
@@ -183,6 +192,9 @@ body.dark .dashboard-link:hover{color:#e05555}
 .recent-event-right{display:flex;align-items:center;gap:8px;flex-shrink:0}
 .recent-event-rated{font-size:11px;font-weight:600;color:#3B6D11;background:#e8f5e0;padding:2px 8px;border-radius:20px}
 .recent-event-p{font-size:11px;color:#1a5fa8;background:#eef4fd;border:1.5px solid #b3c8e8;padding:2px 7px;border-radius:20px;text-decoration:none}
+.recent-event-p.espn{color:#b3261e;background:#fdeeee;border-color:#e0b3b3}
+.recent-event-p.youtube{color:#c4302b;background:#fdeeee;border-color:#e8b3b3}
+.video-dot{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:#eef4fd;color:#1a5fa8;font-size:8px;flex-shrink:0}
 .recent-event-p-count{font-size:11px;color:#1a5fa8;background:#eef4fd;border:1.5px solid #b3c8e8;padding:2px 7px;border-radius:20px}
 .recent-event-chevron{font-size:20px;color:#ddd;line-height:1}
 .events-pagination{display:flex;align-items:center;justify-content:center;gap:12px;padding:10px 0 2px}
@@ -231,7 +243,7 @@ body.dark .community-avg .community-count{color:#666}
 .fight-row-result{padding:3px 8px;border-radius:7px;font-size:11px;color:#555;display:flex;gap:10px;flex-wrap:wrap;white-space:nowrap}
 .fight-row-result.revealed{background:#f0faf0}
 .fight-row-result.spoiler{background:#f5f5f4;color:#ccc;font-style:italic}
-.fight-details{color:#888;font-style:italic}.rated-check{color:#3B6D11;font-size:11px;font-weight:600}
+.fight-details{color:#888;font-style:italic}
 .fighter-record{font-size:11px;font-weight:500;color:#bbb}
 .nav-link{background:none;border:none;padding:0;font:inherit;color:inherit;font-weight:700;cursor:pointer;text-decoration:none;transition:color 0.15s}
 .nav-link:hover{color:#E24B4A}
@@ -309,8 +321,6 @@ body.dark .form-group input:disabled{background:#151515;color:#555}
 /* Buttons */
 body.dark .btn-outline{background:#1e1e1e;border-color:#333;color:#aaa}
 body.dark .btn-outline:hover{background:#252525;border-color:#555}
-body.dark .btn-paramount{background:#1e1e1e;border-color:#2a4a70;color:#5b9bd5}
-body.dark .btn-paramount:hover{background:#1a2a3a;border-color:#5b9bd5}
 body.dark .btn-danger{border-color:#5a2020;color:#e05555}
 body.dark .btn-danger:hover{background:#2a1010}
 body.dark .btn-red:disabled{background:#5a2020;color:#aaa}
@@ -404,6 +414,9 @@ body.dark .recent-event-name{color:#e0e0e0}
 body.dark .recent-event-meta{color:#666}
 body.dark .recent-event-rated{color:#6fbf3b;background:#152a0a}
 body.dark .recent-event-p{color:#5b9bd5;background:#152535;border-color:#2a4a70}
+body.dark .video-dot{background:#152535;color:#5b9bd5}
+body.dark .recent-event-p.espn{color:#e57373;background:#2a1515;border-color:#5a2a2a}
+body.dark .recent-event-p.youtube{color:#e57373;background:#2a1515;border-color:#5a2a2a}
 body.dark .recent-event-p-count{color:#5b9bd5;background:#152535;border-color:#2a4a70}
 body.dark .recent-event-chevron{color:#444}
 
@@ -437,12 +450,14 @@ body.dark .fight-row-result{color:#888}
 body.dark .fight-row-result.revealed{background:#152a0a}
 body.dark .fight-row-result.spoiler{background:#1e1e1e;color:#555}
 body.dark .fight-details{color:#666}
-body.dark .rated-check{color:#6fbf3b}
 body.dark .fighter-record{color:#666}
 
 /* Nav Link */
 body.dark .nav-link{color:#d4d4d4}
 body.dark .nav-link:hover{color:#E24B4A}
+
+/* Org Badges */
+body.dark .org-ufc{background:#3a3f4a;color:#e0e0e0}
 
 /* Auth Screen */
 body.dark .auth-screen{background:#0f0f0f}
