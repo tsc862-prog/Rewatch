@@ -43,6 +43,7 @@ header{display:flex;align-items:center;justify-content:space-between;margin-bott
 .btn-paramount{background:#0564FF;border:1.5px solid #0564FF;color:white;text-decoration:none;display:inline-flex;align-items:center}.btn-paramount:hover{background:#0450d0;border-color:#0450d0}
 .btn-paramount.espn{background:#CC0000;border-color:#CC0000;color:white}.btn-paramount.espn:hover{background:#a80000;border-color:#a80000}
 .btn-youtube{background:#FF0000;border:1.5px solid #FF0000;color:white;text-decoration:none;display:inline-flex;align-items:center}.btn-youtube:hover{background:#d40000;border-color:#d40000}
+.btn-netflix{background:#E50914;border:1.5px solid #E50914;color:white;text-decoration:none;display:inline-flex;align-items:center}.btn-netflix:hover{background:#b80710;border-color:#b80710}
 .btn-sm{font-size:12px;padding:5px 12px}
 .btn-danger{background:transparent;border:1.5px solid #f0c0c0;color:#A32D2D;padding:3px 9px;border-radius:6px;font-size:11px;cursor:pointer;font-family:inherit}
 .btn-danger:hover{background:#FCEBEB}
@@ -71,6 +72,7 @@ header{display:flex;align-items:center;justify-content:space-between;margin-bott
 .org-pfl{background:#F2682C;color:#fff}
 .org-mvp{background:#C9A227;color:#fff}
 .org-bellator{background:#1a5fa8;color:#fff}
+.org-wsof{background:#0E7C86;color:#fff}
 
 /* ── Stars ──────────────────────────────────────────────────────────────────── */
 .star-row{display:flex;align-items:center;gap:8px}
@@ -194,6 +196,7 @@ body.dark .dashboard-link:hover{color:#e05555}
 .recent-event-p{font-size:11px;color:#1a5fa8;background:#eef4fd;border:1.5px solid #b3c8e8;padding:2px 7px;border-radius:20px;text-decoration:none}
 .recent-event-p.espn{color:#b3261e;background:#fdeeee;border-color:#e0b3b3}
 .recent-event-p.youtube{color:#c4302b;background:#fdeeee;border-color:#e8b3b3}
+.recent-event-p.netflix{color:#b80710;background:#fdeeee;border-color:#e8b3b3}
 .video-dot{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:#eef4fd;color:#1a5fa8;font-size:8px;flex-shrink:0}
 .recent-event-p-count{font-size:11px;color:#1a5fa8;background:#eef4fd;border:1.5px solid #b3c8e8;padding:2px 7px;border-radius:20px}
 .recent-event-chevron{font-size:20px;color:#ddd;line-height:1}
@@ -417,6 +420,7 @@ body.dark .recent-event-p{color:#5b9bd5;background:#152535;border-color:#2a4a70}
 body.dark .video-dot{background:#152535;color:#5b9bd5}
 body.dark .recent-event-p.espn{color:#e57373;background:#2a1515;border-color:#5a2a2a}
 body.dark .recent-event-p.youtube{color:#e57373;background:#2a1515;border-color:#5a2a2a}
+body.dark .recent-event-p.netflix{color:#e57373;background:#2a1515;border-color:#5a2a2a}
 body.dark .recent-event-p-count{color:#5b9bd5;background:#152535;border-color:#2a4a70}
 body.dark .recent-event-chevron{color:#444}
 

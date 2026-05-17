@@ -184,6 +184,7 @@ function eventWatchPill(evt) {
   if (evt.espn_url) h += `<a class="recent-event-p espn" href="${escHtml(evt.espn_url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">▶ Full event</a>`;
   if (evt.espn_prelims_url) h += `<a class="recent-event-p espn" href="${escHtml(evt.espn_prelims_url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">▶ Prelims</a>`;
   if (evt.youtube_url) h += `<a class="recent-event-p youtube" href="${escHtml(evt.youtube_url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">▶ Full event</a>`;
+  if (evt.netflix_url) h += `<a class="recent-event-p netflix" href="${escHtml(evt.netflix_url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">▶ Full event</a>`;
   return h;
 }
 
@@ -193,11 +194,12 @@ function eventWatchBtn(evt) {
   if (evt.espn_url) h += `<a class="btn btn-paramount btn-sm espn" href="${escHtml(evt.espn_url)}" target="_blank" rel="noopener">▶ Watch on ESPN</a>`;
   if (evt.espn_prelims_url) h += `<a class="btn btn-paramount btn-sm espn" href="${escHtml(evt.espn_prelims_url)}" target="_blank" rel="noopener">▶ Prelims on ESPN</a>`;
   if (evt.youtube_url) h += `<a class="btn btn-youtube btn-sm" href="${escHtml(evt.youtube_url)}" target="_blank" rel="noopener">▶ Watch on YouTube</a>`;
+  if (evt.netflix_url) h += `<a class="btn btn-netflix btn-sm" href="${escHtml(evt.netflix_url)}" target="_blank" rel="noopener">▶ Watch on Netflix</a>`;
   return h;
 }
 
 function eventHasVideo(evt) {
-  return !!(evt && (evt.paramount_url || evt.espn_url || evt.espn_prelims_url || evt.youtube_url));
+  return !!(evt && (evt.paramount_url || evt.espn_url || evt.espn_prelims_url || evt.youtube_url || evt.netflix_url));
 }
 
 function hl(name, q) {
