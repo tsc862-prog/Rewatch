@@ -24,14 +24,14 @@ async function loadRecentEvents() {
   // Fetch all event IDs that have at least one result, plus fight-level video links
   const { data: fightRows } = await sb
     .from('fight_search')
-    .select('event_id,paramount_url,youtube_url')
+    .select('event_id,paramount_url,youtube_url,fightpass_url')
     .not('method', 'is', null)
     .limit(10000);
 
   if (!fightRows?.length) { el.style.display = 'none'; return; }
 
   const idsWithResults = new Set(fightRows.map(f => f.event_id).filter(Boolean));
-  eventsWithFightVideo = new Set(fightRows.filter(f => f.event_id && (f.paramount_url || f.youtube_url)).map(f => f.event_id));
+  eventsWithFightVideo = new Set(fightRows.filter(f => f.event_id && (f.paramount_url || f.youtube_url || f.fightpass_url)).map(f => f.event_id));
 
   // Fetch all events then sort client-side — avoids relying on DB text-date ordering
   const { data: allEvents } = await sb.from('events').select('*').limit(5000);
@@ -307,7 +307,7 @@ function renderFightRow(fight, opts) {
   const isFuture = eventDateParsed && !isNaN(eventDateParsed) && eventDateParsed > today;
 
   const eventVideo = !currentFighter && eventHasVideo(currentEvent);
-  const hasVideo = !!(fight.paramount_url || fight.youtube_url || eventVideo);
+  const hasVideo = !!(fight.paramount_url || fight.youtube_url || fight.fightpass_url || eventVideo);
   const showResult = !isFuture && (isRated || !hasVideo);
 
   // Randomize display order (deterministic per fight id) to avoid spoiling winner
@@ -349,6 +349,7 @@ function renderFightRow(fight, opts) {
         </div>
         <div style="display:flex;align-items:center;gap:8px">
         ${fight.paramount_url ? `<a class="btn btn-paramount btn-sm" href="${escHtml(fight.paramount_url)}" target="_blank" rel="noopener">▶ Paramount+</a>` : ''}
+        ${fight.fightpass_url ? `<a class="btn btn-fightpass btn-sm" href="${escHtml(fight.fightpass_url)}" target="_blank" rel="noopener">▶ Fight Pass</a>` : ''}
         ${fight.youtube_url ? `<a class="btn btn-youtube btn-sm" href="${escHtml(fight.youtube_url)}" target="_blank" rel="noopener">▶ YouTube</a>` : ''}
       </div>
       </div>

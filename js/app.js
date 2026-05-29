@@ -171,9 +171,15 @@ async function tryLoadDB() {
 
 // ── Shared Helpers ────────────────────────────────────────────────────────────
 
+// Add an org's name here once its logo file exists at img/logos/<slug>.png
+const ORGS_WITH_LOGOS = new Set(['UFC', 'PFL', 'WEC','PRIDE']);
+
 function orgBadge(org) {
   if (!org) return '';
   const slug = org.toLowerCase().replace(/[^a-z0-9]/g, '');
+  if (ORGS_WITH_LOGOS.has(org)) {
+    return `<span class="org-badge org-${slug} has-logo" title="${escHtml(org)}"><img src="img/logos/${slug}.png" alt="${escHtml(org)}"></span>`;
+  }
   return `<span class="org-badge org-${slug}">${escHtml(org)}</span>`;
 }
 
@@ -183,6 +189,8 @@ function eventWatchPill(evt) {
   if (evt.paramount_url) h += `<a class="recent-event-p" href="${escHtml(evt.paramount_url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">▶ Full event</a>`;
   if (evt.espn_url) h += `<a class="recent-event-p espn" href="${escHtml(evt.espn_url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">▶ Full event</a>`;
   if (evt.espn_prelims_url) h += `<a class="recent-event-p espn" href="${escHtml(evt.espn_prelims_url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">▶ Prelims</a>`;
+  if (evt.fightpass_url) h += `<a class="recent-event-p fightpass" href="${escHtml(evt.fightpass_url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">▶ Full event</a>`;
+  if (evt.fightpass_prelims_url) h += `<a class="recent-event-p fightpass" href="${escHtml(evt.fightpass_prelims_url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">▶ Prelims</a>`;
   if (evt.youtube_url) h += `<a class="recent-event-p youtube" href="${escHtml(evt.youtube_url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">▶ Full event</a>`;
   if (evt.netflix_url) h += `<a class="recent-event-p netflix" href="${escHtml(evt.netflix_url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">▶ Full event</a>`;
   return h;
@@ -193,13 +201,15 @@ function eventWatchBtn(evt) {
   if (evt.paramount_url) h += `<a class="btn btn-paramount btn-sm" href="${escHtml(evt.paramount_url)}" target="_blank" rel="noopener">▶ Watch on Paramount+</a>`;
   if (evt.espn_url) h += `<a class="btn btn-paramount btn-sm espn" href="${escHtml(evt.espn_url)}" target="_blank" rel="noopener">▶ Watch on ESPN</a>`;
   if (evt.espn_prelims_url) h += `<a class="btn btn-paramount btn-sm espn" href="${escHtml(evt.espn_prelims_url)}" target="_blank" rel="noopener">▶ Prelims on ESPN</a>`;
+  if (evt.fightpass_url) h += `<a class="btn btn-fightpass btn-sm" href="${escHtml(evt.fightpass_url)}" target="_blank" rel="noopener">▶ Watch on Fight Pass</a>`;
+  if (evt.fightpass_prelims_url) h += `<a class="btn btn-fightpass btn-sm" href="${escHtml(evt.fightpass_prelims_url)}" target="_blank" rel="noopener">▶ Prelims on Fight Pass</a>`;
   if (evt.youtube_url) h += `<a class="btn btn-youtube btn-sm" href="${escHtml(evt.youtube_url)}" target="_blank" rel="noopener">▶ Watch on YouTube</a>`;
   if (evt.netflix_url) h += `<a class="btn btn-netflix btn-sm" href="${escHtml(evt.netflix_url)}" target="_blank" rel="noopener">▶ Watch on Netflix</a>`;
   return h;
 }
 
 function eventHasVideo(evt) {
-  return !!(evt && (evt.paramount_url || evt.espn_url || evt.espn_prelims_url || evt.youtube_url || evt.netflix_url));
+  return !!(evt && (evt.paramount_url || evt.espn_url || evt.espn_prelims_url || evt.fightpass_url || evt.fightpass_prelims_url || evt.youtube_url || evt.netflix_url));
 }
 
 function hl(name, q) {
