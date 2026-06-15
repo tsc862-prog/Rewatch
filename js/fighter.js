@@ -67,9 +67,45 @@ async function selectFighterForPage(fighter) {
   renderFighterCard();
 }
 
+// Summary stats for the current fighter, computed only from the user's rated
+// fights — mirrors getFighterRecord's convention so we never reveal the outcome
+// of a fight the user hasn't watched/rated yet.
+function fighterSummaryStats() {
+  let w = 0, l = 0, d = 0, finishW = 0, decW = 0;
+  const ratings = [];
+  currentFighterFights.forEach(f => {
+    const r = myRatings.find(x => x.fight_id === f.id && x.rating);
+    if (!r) return;
+    ratings.push(r.rating);
+    const ml = (f.method || '').toLowerCase();
+    if (f.winner_name === currentFighter.name) {
+      w++;
+      if (ml.includes('ko') || ml.includes('tko') || ml.includes('submission') || ml.includes('sub')) finishW++;
+      else if (ml.includes('decision') || ml.includes('dec')) decW++;
+    } else if (f.winner_name) {
+      l++;
+    } else {
+      d++;
+    }
+  });
+  return {
+    rated: ratings.length, w, l, d, finishW, decW,
+    avg: ratings.length ? ratings.reduce((a, b) => a + b, 0) / ratings.length : null
+  };
+}
+
 function renderFighterCard() {
   const el    = document.getElementById('fighter-card');
   const rated = currentFighterFights.filter(f => myRatings.some(r => r.fight_id === f.id)).length;
+
+  const s = fighterSummaryStats();
+  const statsStrip = s.rated ? `
+      <div class="fighter-stats-strip">
+        <div class="fstat"><div class="fstat-label">Your Record</div><div class="fstat-value">${s.w}-${s.l}${s.d ? '-' + s.d : ''}</div></div>
+        <div class="fstat"><div class="fstat-label">Finishes</div><div class="fstat-value">${s.finishW}</div></div>
+        <div class="fstat"><div class="fstat-label">Decisions</div><div class="fstat-value">${s.decW}</div></div>
+        <div class="fstat"><div class="fstat-label">Your Avg Rating</div><div class="fstat-value">${s.avg ? s.avg.toFixed(1) + ' <span class="fstat-star">★</span>' : '—'}</div></div>
+      </div>` : '';
 
   el.innerHTML = `
     <div class="card" style="margin-bottom:0">
@@ -85,6 +121,7 @@ function renderFighterCard() {
         </div>
         <span class="event-progress" id="fighter-progress">${rated} / ${currentFighterFights.length} rated</span>
       </div>
+      ${statsStrip}
       <div class="event-fights">
         ${currentFighterFights.length
           ? currentFighterFights.map(f => renderFightRow(f, { showEvent: true })).join('')

@@ -341,28 +341,24 @@ function renderFightRow(fight, opts) {
 
   return `
     <div class="fight-row ${isRated ? 'rated' : ''} ${wlClass}" id="fight-row-${fight.id}">
-      <div class="fight-row-top">
-        <div>
-          ${fight.fight_position_type ? '<span class="pos-type-tag pos-'+slugPosType(fight.fight_position_type)+'">'+escHtml(fight.fight_position_type)+'</span> · ' : ''}
-          ${fight.is_title ? '<span class="title-tag">TITLE BOUT</span> · ' : ''}
-          <span class="fight-row-wc">${escHtml(fight.weight_class || '—')}</span>
-        </div>
-        <div style="display:flex;align-items:center;gap:8px">
-        ${fight.paramount_url ? `<a class="btn btn-paramount btn-sm" href="${escHtml(fight.paramount_url)}" target="_blank" rel="noopener">▶ Paramount+</a>` : ''}
-        ${fight.fightpass_url ? `<a class="btn btn-fightpass btn-sm" href="${escHtml(fight.fightpass_url)}" target="_blank" rel="noopener">▶ Fight Pass</a>` : ''}
-        ${fight.youtube_url ? `<a class="btn btn-youtube btn-sm" href="${escHtml(fight.youtube_url)}" target="_blank" rel="noopener">▶ YouTube</a>` : ''}
-      </div>
-      </div>
-      <div class="fight-row-matchup-line">
+      <div class="fight-row-single">
         <div class="fight-row-matchup">${dF1rank ? '<span class="rank-tag">#'+escHtml(dF1rank)+'</span> ' : ''}<button class="nav-link" onclick="navToFighter('${dF1id}','${(dF1||'').replace(/'/g,"\\'")}')">${escHtml(dF1)}</button>${dF1debut ? ' <span class="debut-tag">DEBUT</span>' : ''}${f1rec ? ' <span class="fighter-record">('+f1rec+')</span>' : ''} vs ${dF2rank ? '<span class="rank-tag">#'+escHtml(dF2rank)+'</span> ' : ''}<button class="nav-link" onclick="navToFighter('${dF2id}','${(dF2||'').replace(/'/g,"\\'")}')">${escHtml(dF2)}</button>${dF2debut ? ' <span class="debut-tag">DEBUT</span>' : ''}${f2rec ? ' <span class="fighter-record">('+f2rec+')</span>' : ''}</div>
         ${isFuture
           ? '<span class="upcoming-tag">Upcoming</span>'
-          : `<div class="fight-row-controls">
-              <div class="fight-row-stars" id="stars-${fight.id}" onmouseleave="hoverFightStars('${fight.id}',0)">${buildClickableStars(fight.id, currentVal, 17)}</div>
-            </div>
-            <div id="result-${fight.id}" class="fight-row-result-wrap">${resultHtml}</div>`}
+          : `<div class="fight-row-stars" id="stars-${fight.id}" onmouseleave="hoverFightStars('${fight.id}',0)">${buildClickableStars(fight.id, currentVal, 17)}</div>
+             <div id="result-${fight.id}" class="fight-row-result-wrap">${resultHtml}</div>`}
+        <div class="watch-icons">
+        ${fight.paramount_url ? `<a class="watch-icon paramount" href="${escHtml(fight.paramount_url)}" target="_blank" rel="noopener" title="Watch on Paramount+" aria-label="Watch on Paramount+">P+</a>` : ''}
+        ${fight.fightpass_url ? `<a class="watch-icon fightpass" href="${escHtml(fight.fightpass_url)}" target="_blank" rel="noopener" title="Watch on Fight Pass" aria-label="Watch on Fight Pass">FP</a>` : ''}
+        ${fight.youtube_url ? `<a class="watch-icon youtube" href="${escHtml(fight.youtube_url)}" target="_blank" rel="noopener" title="Watch on YouTube" aria-label="Watch on YouTube">▶</a>` : ''}
       </div>
-      ${opts.showEvent && fight.event_name ? '<div class="fight-row-event-meta"><button class="nav-link" onclick="navToEvent(\''+fight.event_id+'\')">'+escHtml(fight.event_name)+'</button>'+(fight.event_date?' · '+fight.event_date:'')+'</div>' : ''}
+      </div>
+      <div class="fight-row-submeta">
+        ${fight.fight_position_type ? '<span class="pos-type-tag pos-'+slugPosType(fight.fight_position_type)+'">'+escHtml(fight.fight_position_type)+'</span>' : ''}
+        ${fight.is_title ? '<span class="title-tag">TITLE BOUT</span>' : ''}
+        <span class="fight-row-wc">${escHtml(fight.weight_class || '—')}</span>
+        ${opts.showEvent && fight.event_name ? '<span class="submeta-sep">·</span><button class="nav-link" onclick="navToEvent(\''+fight.event_id+'\')">'+escHtml(fight.event_name)+'</button>'+(fight.event_date?'<span class="submeta-sep">·</span>'+fight.event_date:'') : ''}
+      </div>
       ${fight.notes ? '<div class="fight-row-notes-info">'+escHtml(fight.notes)+'</div>' : ''}
       ${!isFuture ? `<input class="fight-row-notes" id="notes-${fight.id}" type="text" placeholder="Notes…" value="${escHtml(notes)}"
         onblur="saveNotes('${fight.id}')">` : ''}
@@ -522,19 +518,29 @@ async function saveNotes(fightId) {
 
   const existing = myRatings.find(x => x.fight_id === fightId);
   if (existing && (existing.notes || '') === notesVal) return;
+  if (!existing && !currentUser) return;
 
+  // Lock this fight so a concurrent saveNotes/saveFightRating can't double-insert (→ 409 on UNIQUE(fight_id))
+  savingFights.add(fightId);
   let error;
   if (existing) {
     ({ error } = await sb.from('ratings').update({ notes: notesVal || null }).eq('fight_id', fightId));
     if (!error) existing.notes = notesVal || null;
   } else {
-    if (!currentUser) return;
     const fight = currentEventFights.find(f => f.id === fightId) || currentFighterFights.find(f => f.id === fightId);
     const entry = { fight_id: fightId, user_id: currentUser.id, rating: null, notes: notesVal, logged_at: Date.now() };
     ({ error } = await sb.from('ratings').insert(entry));
-    if (!error) myRatings.unshift({ ...fight, ...entry });
+    if (error && error.code === '23505') {
+      // A rating row for this fight already exists (stale cache / another tab) — update its notes
+      // instead of inserting a duplicate, preserving any existing rating.
+      ({ error } = await sb.from('ratings').update({ notes: notesVal || null }).eq('fight_id', fightId));
+      if (!error) myRatings.unshift({ ...fight, ...entry, notes: notesVal || null });
+    } else if (!error) {
+      myRatings.unshift({ ...fight, ...entry });
+    }
   }
+  savingFights.delete(fightId);
 
-  if (error) { showToast('Error saving notes'); return; }
+  if (error) { showToast('Error saving notes: ' + error.message); return; }
   showToast('Notes saved');
 }
