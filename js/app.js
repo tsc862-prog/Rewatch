@@ -185,6 +185,7 @@ const ORG_LOGOS = {
   'Invicta FC':      'invictafc.svg',
   'Strikeforce':     'strikeforce.svg',
   'WSOF':            'wsof.svg',
+  'RIZIN':           'rizin.svg',
   'Road to UFC':     'roadtoufc.svg',
   'Vale Tudo Japan': 'valetudojapan.svg',
   'Affliction':      'affliction.svg',
