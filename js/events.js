@@ -70,7 +70,8 @@ function renderUpcomingEvents() {
   const todayTs = new Date().setHours(0,0,0,0);
 
   el.innerHTML = `
-    <div class="upcoming-events-label">Upcoming</div>
+    <div class="upcoming-events-label">Upcoming<span class="upcoming-count">${upcomingEventsList.length}</span></div>
+    <div class="upcoming-list">
     ${upcomingEventsList.map((evt, i) => {
       const isToday = new Date(evt.date).setHours(0,0,0,0) === todayTs;
       return `
@@ -85,9 +86,24 @@ function renderUpcomingEvents() {
           </div>
           <span class="recent-event-chevron">›</span>
         </div>`;
-    }).join('')}`;
+    }).join('')}
+    </div>`;
   el.style.display = 'block';
+  requestAnimationFrame(syncUpcomingHeight);
 }
+
+// Match the Upcoming scroll list to the height of the main (Recent) list, so the
+// two columns are the same length; overflow scrolls. No-op on stacked mobile layout.
+function syncUpcomingHeight() {
+  const main  = document.querySelector('.events-col-main');
+  const list  = document.querySelector('.upcoming-list');
+  const label = document.querySelector('.upcoming-events-label');
+  if (!main || !list) return;
+  if (window.innerWidth <= 700) { list.style.maxHeight = ''; return; } // let CSS handle mobile
+  const h = main.offsetHeight - (label ? label.offsetHeight + 8 : 0); // 8 = label margin-bottom
+  list.style.maxHeight = Math.max(h, 120) + 'px';
+}
+window.addEventListener('resize', syncUpcomingHeight);
 
 function formatUpcomingMonth(dateStr) {
   if (!dateStr) return '';
@@ -141,6 +157,7 @@ function renderRecentEventsList() {
       <button class="pag-btn" onclick="recentEventsPageChange(1)" ${recentEventsPage >= totalPages - 1 ? 'disabled' : ''}>Next →</button>
     </div>` : ''}`;
   el.style.display = 'block';
+  requestAnimationFrame(syncUpcomingHeight);
 }
 
 function recentEventsPageChange(dir) {

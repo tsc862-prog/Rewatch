@@ -211,10 +211,21 @@ body.dark .dashboard-link:hover{color:#e05555}
 .upcoming-event-name{font-size:12px;font-weight:600;color:#111827;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .upcoming-event-meta{font-size:11px;color:#bbb;margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .upcoming-event-links{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
-@media(max-width:700px){.events-columns-layout{flex-direction:column}.events-col-side{width:100%}}
+.upcoming-events-label{display:flex;align-items:center;gap:6px}
+.upcoming-count{font-size:9px;font-weight:700;color:#aaa;background:#f0ede8;border-radius:10px;padding:1px 7px;letter-spacing:0}
+/* Height-bounded scroll keeps the sidebar from ever running taller than the main list */
+.upcoming-list{max-height:430px;overflow-y:auto;padding-right:4px}
+.upcoming-list::-webkit-scrollbar{width:6px}
+.upcoming-list::-webkit-scrollbar-thumb{background:#e0ddd6;border-radius:3px}
+.upcoming-list::-webkit-scrollbar-track{background:transparent}
+@media(max-width:700px){
+  .events-columns-layout{flex-direction:column;gap:20px}
+  .events-col-side{width:100%}
+  .upcoming-list{max-height:none;overflow:visible;padding-right:0}
+}
 
 /* ── Recent Events List ─────────────────────────────────────────────────────── */
-.recent-events-label{font-size:10px;font-weight:700;color:#ccc;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:10px;margin-top:8px}
+.recent-events-label{font-size:10px;font-weight:700;color:#ccc;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;margin-top:0}
 .recent-event-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:7px 12px;background:#fafaf8;border:1.5px solid #f0ede8;border-radius:9px;margin-bottom:4px;cursor:pointer;transition:all 0.2s ease-out;border-left:4px solid transparent}
 .recent-event-row:hover,.recent-event-row.focused{border-color:#e5e3dc;border-left-color:#E24B4A;background:white;box-shadow:0 2px 10px rgba(0,0,0,0.08);transform:translateX(2px)}
 .recent-event-left{display:flex;flex-direction:column;gap:3px;min-width:0}
@@ -428,6 +439,8 @@ body.dark .toast{background:#e0e0e0;color:#111}
 
 /* Upcoming Events */
 body.dark .upcoming-events-label{color:#555}
+body.dark .upcoming-count{background:#2a2a2a;color:#777}
+body.dark .upcoming-list::-webkit-scrollbar-thumb{background:#3a3a3a}
 body.dark .upcoming-event-row{background:#1a1a1a;border-color:#2a2a2a}
 body.dark .upcoming-event-row:hover{background:#1e1e1e;border-color:#444;box-shadow:0 2px 8px rgba(0,0,0,0.3)}
 body.dark .upcoming-event-row.today{background:#1f1515;border-color:#4a2020}
