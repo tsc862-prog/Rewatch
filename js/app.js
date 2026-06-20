@@ -171,14 +171,32 @@ async function tryLoadDB() {
 
 // ── Shared Helpers ────────────────────────────────────────────────────────────
 
-// Add an org's name here once its logo file exists at img/logos/<slug>.png
-const ORGS_WITH_LOGOS = new Set(['UFC', 'PFL', 'WEC','PRIDE']);
+// Map an org name to its logo file in img/logos/. Add an entry here once the file exists.
+const ORG_LOGOS = {
+  'UFC':             'ufc.png',
+  'PFL':             'pfl.png',
+  'WEC':             'wec.png',
+  'PRIDE':           'pride.png',
+  'Pancrase':        'pancrase.svg',
+  'Bellator':        'bellator.svg',
+  'Cage Warriors':   'cagewarriors.svg',
+  'LFA':             'lfa.svg',
+  'CFFC':            'cffc.svg',
+  'Invicta FC':      'invictafc.svg',
+  'Strikeforce':     'strikeforce.svg',
+  'WSOF':            'wsof.svg',
+  'Road to UFC':     'roadtoufc.svg',
+  'Vale Tudo Japan': 'valetudojapan.svg',
+  'Affliction':      'affliction.svg',
+  'MVP':             'mvp.svg',
+};
 
 function orgBadge(org) {
   if (!org) return '';
   const slug = org.toLowerCase().replace(/[^a-z0-9]/g, '');
-  if (ORGS_WITH_LOGOS.has(org)) {
-    return `<span class="org-badge org-${slug} has-logo" title="${escHtml(org)}"><img src="img/logos/${slug}.png" alt="${escHtml(org)}"></span>`;
+  const file = ORG_LOGOS[org];
+  if (file) {
+    return `<span class="org-badge org-${slug} has-logo" title="${escHtml(org)}"><img src="img/logos/${file}" alt="${escHtml(org)}"></span>`;
   }
   return `<span class="org-badge org-${slug}">${escHtml(org)}</span>`;
 }

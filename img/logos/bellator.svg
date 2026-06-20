@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 123 24" role="img" aria-label="Bellator">
+  <g fill="#1F6FB5">
+    <polygon points="8,3 15,7 13,20 3,20 1,7"/>
+    <text x="24" y="18" transform="skewX(-8)" textLength="92" lengthAdjust="spacingAndGlyphs" font-family="'Arial Black','Helvetica Neue',Arial,sans-serif" font-size="20" font-weight="900" letter-spacing="-0.5">BELLATOR</text>
+  </g>
+</svg>

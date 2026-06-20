@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 79 24" role="img" aria-label="WSOF">
+  <g fill="#0E7C86">
+    <circle cx="8" cy="12" r="6" fill="none" stroke="#0E7C86" stroke-width="2.6"/>
+    <text x="26" y="18" transform="skewX(-8)" textLength="46" lengthAdjust="spacingAndGlyphs" font-family="'Arial Black','Helvetica Neue',Arial,sans-serif" font-size="20" font-weight="900" letter-spacing="-0.5">WSOF</text>
+  </g>
+</svg>

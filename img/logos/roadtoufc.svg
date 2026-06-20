@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 24" role="img" aria-label="Road to UFC">
+  <g fill="#D20A0A">
+    <polygon points="0,9 9,9 9,5 16,12 9,19 9,15 0,15"/>
+    <text x="26" y="18" transform="skewX(-8)" textLength="127" lengthAdjust="spacingAndGlyphs" font-family="'Arial Black','Helvetica Neue',Arial,sans-serif" font-size="20" font-weight="900" letter-spacing="-0.5">ROAD TO UFC</text>
+  </g>
+</svg>
