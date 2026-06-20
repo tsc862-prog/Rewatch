@@ -201,6 +201,20 @@ function orgBadge(org) {
   return `<span class="org-badge org-${slug}">${escHtml(org)}</span>`;
 }
 
+// Dev helper: warn once if any organization in the data has no logo registered
+// in ORG_LOGOS (so it renders as a plain text badge). Add an icon + map entry to fix.
+let _orgLogoAuditDone = false;
+function auditOrgLogos(events) {
+  if (_orgLogoAuditDone || !Array.isArray(events)) return;
+  _orgLogoAuditDone = true;
+  const missing = [...new Set(events.map(e => e && e.organization).filter(Boolean))]
+    .filter(org => !ORG_LOGOS[org])
+    .sort();
+  if (missing.length) {
+    console.warn(`[orgBadge] ${missing.length} organization(s) without a logo — add to ORG_LOGOS in js/app.js:`, missing);
+  }
+}
+
 // Event-level watch link — Paramount+ (UFC) or ESPN (PFL)
 function eventWatchPill(evt) {
   let h = '';

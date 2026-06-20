@@ -36,6 +36,7 @@ async function loadRecentEvents() {
   // Fetch all events then sort client-side — avoids relying on DB text-date ordering
   const { data: allEvents } = await sb.from('events').select('*').limit(5000);
   if (!allEvents?.length) { el.style.display = 'none'; return; }
+  auditOrgLogos(allEvents);
 
   const startOfToday = new Date(); startOfToday.setHours(0,0,0,0);
   const todayTs = startOfToday.getTime();
