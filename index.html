@@ -52,6 +52,7 @@
       <button class="nav-btn active" onclick="showView('log',event)">Event</button>
       <button class="nav-btn" onclick="showView('fighter',event)">Fighter</button>
       <button class="nav-btn" onclick="showView('dashboard',event)">Dashboard</button>
+      <button class="nav-btn" onclick="showView('community',event)">Community</button>
     </nav>
     <div class="header-right">
       <span class="user-email" id="user-email"></span>
@@ -157,6 +158,10 @@
     <div class="card">
       <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:1rem">
         <p class="section-head" style="margin:0">Leaderboard</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <select id="dashboard-year" onchange="renderDashboard()" style="max-width:140px">
+          <option value="">All years</option>
+        </select>
         <select id="leaderboard-wc" onchange="renderLeaderboard()" style="max-width:220px">
           <option value="">All divisions</option>
           <option>Flyweight</option><option>Bantamweight</option>
@@ -165,6 +170,7 @@
           <option>Women's Strawweight</option><option>Women's Flyweight</option>
           <option>Women's Bantamweight</option><option>Women's Featherweight</option>
         </select>
+        </div>
       </div>
       <div class="leaderboard-grid">
         <div class="leaderboard-col"><div class="leaderboard-title">Most Fights</div><div id="lb-fights"></div></div>
@@ -205,6 +211,64 @@
       <div id="activity-feed"><div class="empty">Loading…</div></div>
     </div>
   </div>
+
+  <!-- COMMUNITY VIEW (all fights, community average ratings) -->
+  <div id="view-community" class="view">
+    <div class="card">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:1rem">
+        <p class="section-head" style="margin:0">Community Leaderboard</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <select id="community-org" onchange="renderCommunityDashboard()" style="max-width:200px">
+            <option value="">All orgs</option>
+          </select>
+          <select id="community-year" onchange="renderCommunityDashboard()" style="max-width:140px">
+            <option value="">All years</option>
+          </select>
+          <select id="community-wc" onchange="renderCommunityDashboard()" style="max-width:200px">
+            <option value="">All divisions</option>
+            <option>Flyweight</option><option>Bantamweight</option>
+            <option>Featherweight</option><option>Lightweight</option><option>Welterweight</option>
+            <option>Middleweight</option><option>Light Heavyweight</option><option>Heavyweight</option>
+            <option>Women's Strawweight</option><option>Women's Flyweight</option>
+            <option>Women's Bantamweight</option><option>Women's Featherweight</option>
+          </select>
+        </div>
+      </div>
+      <div class="leaderboard-grid">
+        <div class="leaderboard-col"><div class="leaderboard-title">Most Fights</div><div id="clb-fights"></div></div>
+        <div class="leaderboard-col"><div class="leaderboard-title">Most Wins</div><div id="clb-wins"></div></div>
+        <div class="leaderboard-col"><div class="leaderboard-title">Most Decision Wins</div><div id="clb-decisions"></div></div>
+        <div class="leaderboard-col"><div class="leaderboard-title">Most Finishes</div><div id="clb-finishes"></div></div>
+
+        <div class="leaderboard-col"><div class="leaderboard-title">Most KO/TKO Wins</div><div id="clb-ko"></div></div>
+        <div class="leaderboard-col"><div class="leaderboard-title">Most Submission Wins</div><div id="clb-sub"></div></div>
+        <div class="leaderboard-col"><div class="leaderboard-title">Most Fight Time</div><div id="clb-time"></div></div>
+        <div class="leaderboard-col"><div class="leaderboard-title">Most Losses</div><div id="clb-losses"></div></div>
+
+        <div class="leaderboard-col"><div class="leaderboard-title">Highest Avg Rating (3+)</div><div id="clb-rating"></div></div>
+        <div class="leaderboard-col"><div class="leaderboard-title">Lowest Avg Rating (3+)</div><div id="clb-rating-low"></div></div>
+        <div class="leaderboard-col lb-span-2"><div class="leaderboard-title">Highest Rated Fights</div><div id="clb-ranked"></div></div>
+      </div>
+    </div>
+    <div class="grid-4" style="margin-top:1rem">
+      <div class="metric"><div class="metric-label">Total fights</div><div class="metric-value" id="c-total">0</div></div>
+      <div class="metric"><div class="metric-label">Events</div><div class="metric-value" id="c-events">0</div></div>
+      <div class="metric"><div class="metric-label">Finishes</div><div class="metric-value" id="c-finishes">0</div></div>
+      <div class="metric"><div class="metric-label">Community avg</div><div class="metric-value" id="c-avg">—</div></div>
+      <div class="metric"><div class="metric-label">Total fight time</div><div class="metric-value" id="c-time">—</div></div>
+    </div>
+    <div class="grid-2">
+      <div class="card" style="margin-bottom:0">
+        <p class="section-head" style="margin-bottom:1rem">Method breakdown</p>
+        <div class="chart-wrap"><canvas id="cMethodChart" role="img" aria-label="Method breakdown chart">Method breakdown</canvas></div>
+        <div id="c-method-legend" style="display:flex;flex-wrap:wrap;gap:10px;margin-top:12px;font-size:12px;color:#888"></div>
+      </div>
+      <div class="card" style="margin-bottom:0">
+        <p class="section-head">Fights by division</p>
+        <div id="c-wc-bars"></div>
+      </div>
+    </div>
+  </div>
 </div>
 
 </div>
@@ -220,6 +284,7 @@
 <script src="js/fighter.js"></script>
 <script src="js/ratings.js"></script>
 <script src="js/views.js"></script>
+<script src="js/community.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>
