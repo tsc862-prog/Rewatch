@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 123 24" role="img" aria-label="Titan FC">
+  <g fill="#2E8B8B">
+    <circle cx="8" cy="12" r="7" fill="none" stroke="#2E8B8B" stroke-width="2.4"/><circle cx="8" cy="12" r="2.6"/>
+    <text x="24" y="18" transform="skewX(-8)" textLength="92" lengthAdjust="spacingAndGlyphs" font-family="'Arial Black','Helvetica Neue',Arial,sans-serif" font-size="20" font-weight="900" letter-spacing="-0.5">TITAN FC</text>
+  </g>
+</svg>
