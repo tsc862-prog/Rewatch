@@ -9,12 +9,17 @@ async function loadRatings() {
   if (error || !ratingsData?.length) { myRatings = []; return; }
 
   const fightIds = ratingsData.map(r => r.fight_id);
-  const { data: fightData } = await sb
-    .from('fight_search')
-    .select('*')
-    .in('id', fightIds);
-
-  const fightMap = Object.fromEntries((fightData || []).map(f => [f.id, f]));
+  // Fetch fight metadata in batches: a single .in() with hundreds of 36-char UUIDs
+  // overflows the request URL length limit and returns 400 (silently dropping all
+  // fighter/event/method metadata from the dashboard).
+  const CHUNK = 100;
+  const chunks = [];
+  for (let i = 0; i < fightIds.length; i += CHUNK) chunks.push(fightIds.slice(i, i + CHUNK));
+  const results = await Promise.all(
+    chunks.map(c => sb.from('fight_search').select('*').in('id', c))
+  );
+  const fightMap = {};
+  results.forEach(({ data }) => (data || []).forEach(f => { fightMap[f.id] = f; }));
   myRatings = ratingsData.map(r => ({ ...fightMap[r.fight_id], ...r }));
 }
 

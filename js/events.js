@@ -21,17 +21,14 @@ async function loadRecentEvents() {
   const el = document.getElementById('recent-events');
   if (!el) return;
 
-  // Fetch all event IDs that have at least one result, plus fight-level video links
-  const { data: fightRows } = await sb
-    .from('fight_search')
-    .select('event_id,paramount_url,youtube_url,fightpass_url')
-    .not('method', 'is', null)
-    .limit(10000);
+  // Which events have results (+ a fight-level video link). Uses an aggregate RPC so we
+  // get every event in one small payload — a row-capped fight_search scan silently dropped
+  // the newest events once the dataset grew past the limit.
+  const { data: flags } = await sb.rpc('event_result_flags');
+  if (!flags?.length) { el.style.display = 'none'; return; }
 
-  if (!fightRows?.length) { el.style.display = 'none'; return; }
-
-  const idsWithResults = new Set(fightRows.map(f => f.event_id).filter(Boolean));
-  eventsWithFightVideo = new Set(fightRows.filter(f => f.event_id && (f.paramount_url || f.youtube_url || f.fightpass_url)).map(f => f.event_id));
+  const idsWithResults = new Set(flags.map(f => f.event_id));
+  eventsWithFightVideo = new Set(flags.filter(f => f.has_video).map(f => f.event_id));
 
   // Fetch all events then sort client-side — avoids relying on DB text-date ordering
   const { data: allEvents } = await sb.from('events').select('*').limit(5000);
@@ -46,7 +43,7 @@ async function loadRecentEvents() {
     .sort((a, b) => {
       const da = a.date ? new Date(a.date).getTime() : 0;
       const db = b.date ? new Date(b.date).getTime() : 0;
-      return db - da;
+      return (db - da) || (b.id - a.id); // deterministic tie-break for same-date events
     });
 
   upcomingEventsList = allEvents
