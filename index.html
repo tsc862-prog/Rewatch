@@ -71,10 +71,18 @@
     <!-- Event Search -->
     <div id="event-search-card" class="card">
       <p class="section-head">Find an event to rate</p>
-      <div class="form-group">
-        <label>Search by event name</label>
-        <input type="text" id="event-search" placeholder="e.g. UFC 229, UFC Fight Night, UFC 300…" autocomplete="off" disabled
-          oninput="eventSearch()" onkeydown="eventSearchKey(event)">
+      <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end">
+        <div class="form-group" style="flex:1;min-width:200px;margin:0">
+          <label>Search by event name</label>
+          <input type="text" id="event-search" placeholder="e.g. UFC 229, UFC Fight Night, UFC 300…" autocomplete="off" disabled
+            oninput="eventSearch()" onkeydown="eventSearchKey(event)">
+        </div>
+        <div class="form-group" style="margin:0">
+          <label>Filter by organization</label>
+          <select id="events-org" onchange="eventsOrgChange()" style="min-width:200px">
+            <option value="">All orgs</option>
+          </select>
+        </div>
       </div>
 
       <div class="events-columns-layout">
@@ -159,6 +167,9 @@
       <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:1rem">
         <p class="section-head" style="margin:0">Leaderboard</p>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <select id="dashboard-org" onchange="renderDashboard()" style="max-width:180px">
+          <option value="">All orgs</option>
+        </select>
         <select id="dashboard-year" onchange="renderDashboard()" style="max-width:140px">
           <option value="">All years</option>
         </select>

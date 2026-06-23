@@ -58,6 +58,7 @@ async function selectFighterForPage(fighter) {
   const { data, error } = await sb
     .from('fight_search')
     .select('*')
+    .not('is_amateur', 'is', true)
     .or(`fighter1_id.eq.${fighter.id},fighter2_id.eq.${fighter.id}`)
     .order('event_date', { ascending: false });
 
@@ -145,6 +146,7 @@ async function reloadFighterFights() {
   const { data } = await sb
     .from('fight_search')
     .select('*')
+    .not('is_amateur', 'is', true)
     .or(`fighter1_id.eq.${currentFighter.id},fighter2_id.eq.${currentFighter.id}`)
     .order('event_date', { ascending: false });
   if (data) {

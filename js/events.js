@@ -3,8 +3,33 @@
 
 let eventAcIdx = -1, eventAcResults = [];
 let recentEventsList = [];
+let recentEventsView = [];   // recentEventsList after the org filter (referenced by row onclick)
+let upcomingEventsView = []; // upcomingEventsList after the org filter
 let recentEventsPage = 0;
 const RECENT_EVENTS_PAGE_SIZE = 10;
+
+// ── Events org filter ─────────────────────────────────────────────────────────
+function eventsOrg() { return document.getElementById('events-org')?.value || ''; }
+function filterEventsByOrg(list) {
+  const o = eventsOrg();
+  return o ? list.filter(e => e.organization === o) : list;
+}
+function eventsOrgChange() {
+  recentEventsPage = 0;
+  renderUpcomingEvents();
+  renderRecentEventsList();
+}
+// Populate the org dropdown from the loaded events (UFC first, then by frequency).
+function populateEventsOrgs(events) {
+  const sel = document.getElementById('events-org');
+  if (!sel) return;
+  const cur = sel.value;
+  const counts = {};
+  events.forEach(e => { if (e.organization) counts[e.organization] = (counts[e.organization] || 0) + 1; });
+  const orgs = Object.keys(counts).sort((a, b) => (a === 'UFC' ? -1 : b === 'UFC' ? 1 : counts[b] - counts[a]));
+  sel.innerHTML = '<option value="">All orgs</option>' + orgs.map(o => `<option value="${escHtml(o)}">${escHtml(o)}</option>`).join('');
+  if (cur && orgs.includes(cur)) sel.value = cur;
+}
 
 // ── Recent Events List ───────────────────────────────────────────────────────
 
@@ -55,6 +80,7 @@ async function loadRecentEvents() {
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
   recentEventsPage = 0;
+  populateEventsOrgs(allEvents);
   renderUpcomingEvents();
   renderRecentEventsList();
 }
@@ -62,17 +88,18 @@ async function loadRecentEvents() {
 function renderUpcomingEvents() {
   const el = document.getElementById('upcoming-events');
   if (!el) return;
-  if (!upcomingEventsList.length) { el.style.display = 'none'; return; }
+  upcomingEventsView = filterEventsByOrg(upcomingEventsList);
+  if (!upcomingEventsView.length) { el.style.display = 'none'; return; }
 
   const todayTs = new Date().setHours(0,0,0,0);
 
   el.innerHTML = `
-    <div class="upcoming-events-label">Upcoming<span class="upcoming-count">${upcomingEventsList.length}</span></div>
+    <div class="upcoming-events-label">Upcoming<span class="upcoming-count">${upcomingEventsView.length}</span></div>
     <div class="upcoming-list">
-    ${upcomingEventsList.map((evt, i) => {
+    ${upcomingEventsView.map((evt, i) => {
       const isToday = new Date(evt.date).setHours(0,0,0,0) === todayTs;
       return `
-        <div class="upcoming-event-row${isToday ? ' today' : ''}" onclick="selectEvent(upcomingEventsList[${i}])">
+        <div class="upcoming-event-row${isToday ? ' today' : ''}" onclick="selectEvent(upcomingEventsView[${i}])">
           <div class="upcoming-event-date-block">
             <div class="upcoming-event-month">${isToday ? 'TODAY' : formatUpcomingMonth(evt.date)}</div>
             <div class="upcoming-event-day">${isToday ? '★' : formatUpcomingDay(evt.date)}</div>
@@ -119,10 +146,18 @@ function renderRecentEventsList() {
   if (!el) return;
   if (!recentEventsList.length) { el.style.display = 'none'; return; }
 
-  const total = recentEventsList.length;
-  const totalPages = Math.ceil(total / RECENT_EVENTS_PAGE_SIZE);
+  recentEventsView = filterEventsByOrg(recentEventsList);
+  const total = recentEventsView.length;
+  const totalPages = Math.max(1, Math.ceil(total / RECENT_EVENTS_PAGE_SIZE));
+  if (recentEventsPage > totalPages - 1) recentEventsPage = totalPages - 1;
   const start = recentEventsPage * RECENT_EVENTS_PAGE_SIZE;
-  const pageEvents = recentEventsList.slice(start, start + RECENT_EVENTS_PAGE_SIZE);
+  const pageEvents = recentEventsView.slice(start, start + RECENT_EVENTS_PAGE_SIZE);
+
+  if (!total) {
+    el.innerHTML = '<div class="recent-events-label">Events</div><div class="empty" style="padding:12px 0">No events for this organization.</div>';
+    el.style.display = 'block';
+    return;
+  }
 
   const ratedByEvent = {};
   myRatings.forEach(r => { if (r.event_id) ratedByEvent[r.event_id] = (ratedByEvent[r.event_id] || 0) + 1; });
@@ -133,7 +168,7 @@ function renderRecentEventsList() {
       const globalIdx = start + i;
       const ratedCount = ratedByEvent[evt.id] || 0;
       return `
-        <div class="recent-event-row" onclick="selectEvent(recentEventsList[${globalIdx}])">
+        <div class="recent-event-row" onclick="selectEvent(recentEventsView[${globalIdx}])">
           <div class="recent-event-left">
             <div class="recent-event-name">${orgBadge(evt.organization)}${escHtml(evt.name)}</div>
             <div class="recent-event-meta">
@@ -158,7 +193,7 @@ function renderRecentEventsList() {
 }
 
 function recentEventsPageChange(dir) {
-  const totalPages = Math.ceil(recentEventsList.length / RECENT_EVENTS_PAGE_SIZE);
+  const totalPages = Math.ceil(recentEventsView.length / RECENT_EVENTS_PAGE_SIZE);
   recentEventsPage = Math.max(0, Math.min(totalPages - 1, recentEventsPage + dir));
   renderRecentEventsList();
 }
@@ -248,6 +283,7 @@ async function selectEvent(evt) {
   const { data, error } = await sb
     .from('fight_search')
     .select('*')
+    .not('is_amateur', 'is', true)
     .eq('event_id', evt.id)
     .order('fight_position', { ascending: true, nullsFirst: false });
 

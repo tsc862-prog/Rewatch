@@ -17,6 +17,7 @@ async function doFightSearch() {
   const { data, error } = await sb
     .from('fight_search')
     .select('*')
+    .not('is_amateur', 'is', true)
     .or(`fighter1_name.ilike.%${q}%,fighter2_name.ilike.%${q}%,event_name.ilike.%${q}%`)
     .limit(12);
 

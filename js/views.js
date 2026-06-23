@@ -105,7 +105,7 @@ function renderTable() {
 
 function calcTotalFightTime() {
   let totalSec = 0;
-  filterDashYear(myRatings).forEach(f => {
+  dashFilter(myRatings).forEach(f => {
     if (!f.round) return;
     if (f.time) {
       const parts = f.time.split(':').map(Number);
@@ -127,11 +127,15 @@ function formatFightTime(sec) {
   return `${m}m ${s}s`;
 }
 
-// ── Dashboard year filter (applies to the whole personal dashboard) ───────────
+// ── Dashboard filters (org + year, applied to the whole personal dashboard) ───
 function dashYear() { return document.getElementById('dashboard-year')?.value || ''; }
-function filterDashYear(list) {
-  const y = dashYear();
-  return y ? list.filter(f => (f.event_date || '').slice(0, 4) === y) : list;
+function dashOrg()  { return document.getElementById('dashboard-org')?.value || ''; }
+function dashFilter(list) {
+  const y = dashYear(), o = dashOrg();
+  if (!y && !o) return list;
+  return list.filter(f =>
+    (!y || (f.event_date || '').slice(0, 4) === y) &&
+    (!o || f.event_organization === o));
 }
 function populateDashYears() {
   const sel = document.getElementById('dashboard-year');
@@ -141,10 +145,22 @@ function populateDashYears() {
   sel.innerHTML = '<option value="">All years</option>' + years.map(y => `<option value="${y}">${y}</option>`).join('');
   if (cur && years.includes(cur)) sel.value = cur;
 }
+function populateDashOrgs() {
+  const sel = document.getElementById('dashboard-org');
+  if (!sel) return;
+  const cur = sel.value;
+  // distinct orgs in the user's ratings, ordered by frequency (UFC first)
+  const counts = {};
+  myRatings.forEach(f => { if (f.event_organization) counts[f.event_organization] = (counts[f.event_organization] || 0) + 1; });
+  const orgs = Object.keys(counts).sort((a, b) => (a === 'UFC' ? -1 : b === 'UFC' ? 1 : counts[b] - counts[a]));
+  sel.innerHTML = '<option value="">All orgs</option>' + orgs.map(o => `<option value="${escHtml(o)}">${escHtml(o)}</option>`).join('');
+  if (cur && orgs.includes(cur)) sel.value = cur;
+}
 
 function renderDashboard() {
+  populateDashOrgs();
   populateDashYears();
-  const fights = filterDashYear(myRatings);
+  const fights = dashFilter(myRatings);
   document.getElementById('d-total').textContent = fights.length;
   document.getElementById('d-events').textContent = new Set(fights.map(f=>f.event_name).filter(Boolean)).size;
   document.getElementById('d-finishes').textContent = fights.filter(f=>{ const ml=(f.method||'').toLowerCase(); return ml.includes('ko')||ml.includes('tko')||ml.includes('submission'); }).length;
@@ -250,7 +266,7 @@ async function renderActivityFeed() {
 
 function renderMethodChart() {
   const counts = {};
-  filterDashYear(myRatings).forEach(f => { const k = f.method||'Other'; counts[k]=(counts[k]||0)+1; });
+  dashFilter(myRatings).forEach(f => { const k = f.method||'Other'; counts[k]=(counts[k]||0)+1; });
   const labels = Object.keys(counts), data = Object.values(counts);
   const colors = ['#E24B4A','#1D9E75','#378ADD','#BA7517','#7F77DD','#D4537E','#888780'];
   document.getElementById('method-legend').innerHTML = labels.map((l,i) =>
@@ -270,7 +286,7 @@ function normalizeWeightClass(wc) {
 
 function renderWcBars() {
   const stats = {};
-  filterDashYear(myRatings).forEach(f => {
+  dashFilter(myRatings).forEach(f => {
     if (!f.weight_class) return;
     const wc = normalizeWeightClass(f.weight_class);
     if (!stats[wc]) stats[wc] = { count: 0, total: 0, rated: 0 };
@@ -298,7 +314,7 @@ function fighterFightTime(f) {
 
 function renderLeaderboard() {
   const wc = (document.getElementById('leaderboard-wc')?.value) || '';
-  const source = filterDashYear(wc ? myRatings.filter(f => f.weight_class === wc) : myRatings);
+  const source = dashFilter(wc ? myRatings.filter(f => f.weight_class === wc) : myRatings);
 
   const map = {};
   source.forEach(f => {
