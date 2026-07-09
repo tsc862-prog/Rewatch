@@ -46,6 +46,7 @@ async function loadFightAggregates() {
 }
 
 // ── Shared state ──────────────────────────────────────────────────────────────
+let appDataReady = false; // true once the initial ratings/aggregates have loaded
 let myRatings = [];
 let selectedFight = null;
 let currentRating = 0;
@@ -113,6 +114,7 @@ async function enterApp() {
   hideAuthScreen();
   updateAuthUI();
   await loadRatings();
+  appDataReady = true;
   renderTable();
   if (typeof renderRecentEventsList === 'function') renderRecentEventsList();
   if (currentEvent) renderEventCard();
@@ -152,7 +154,10 @@ async function init() {
   document.getElementById('app-shell').style.display = 'block';
   updateAuthUI();
   await Promise.all([currentUser ? loadRatings() : Promise.resolve(), tryLoadDB(), loadFightAggregates()]);
+  appDataReady = true;
   renderTable();
+  // If the user navigated to the dashboard while data was still loading, render it now
+  if (document.getElementById('view-dashboard')?.classList.contains('active')) renderDashboard();
 }
 
 async function tryLoadDB() {
@@ -160,7 +165,8 @@ async function tryLoadDB() {
   try {
     const { count, error } = await sb
       .from('fights')
-      .select('*', { count: 'exact', head: true });
+      .select('*', { count: 'exact', head: true })
+      .not('is_amateur', 'is', true);
     if (error) throw error;
     if (count > 0) showDbReady(count);
     else showNoDb();
@@ -196,6 +202,18 @@ const ORG_LOGOS = {
   'Vale Tudo Japan': 'valetudojapan.svg',
   'Affliction':      'affliction.svg',
   'MVP':             'mvp.svg',
+  'XFN':             'xfn.svg',
+  'Eternal MMA':     'eternalmma.svg',
+  'JCK':             'jck.svg',
+  'CES MMA':         'cesmma.svg',
+  'UAE Warriors':    'uaewarriors.svg',
+  'Legacy FC':       'legacyfc.svg',
+  'LUX':             'lux.svg',
+  'UWC':             'uwc.svg',
+  'Ares FC':         'aresfc.svg',
+  'A1 Combat':       'a1combat.svg',
+  'APFC':            'apfc.svg',
+  'iKON FC':         'ikonfc.svg',
 };
 
 function orgBadge(org) {

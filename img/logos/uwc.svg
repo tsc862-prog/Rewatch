@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 66 24" role="img" aria-label="UWC">
+  <g fill="#1F8FBF">
+    <circle cx="8" cy="12" r="7" fill="none" stroke="#1F8FBF" stroke-width="2.4"/><rect x="1" y="10.8" width="14" height="2.4"/>
+    <text x="24" y="18" transform="skewX(-8)" textLength="35" lengthAdjust="spacingAndGlyphs" font-family="'Arial Black','Helvetica Neue',Arial,sans-serif" font-size="20" font-weight="900" letter-spacing="-0.5">UWC</text>
+  </g>
+</svg>

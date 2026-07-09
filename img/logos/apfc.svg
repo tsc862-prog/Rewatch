@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 77 24" role="img" aria-label="APFC">
+  <g fill="#3E8E7E">
+    <polygon points="8,2 16,11 12,11 8,7 4,11 0,11"/><polygon points="8,11 16,20 12,20 8,16 4,20 0,20"/>
+    <text x="24" y="18" transform="skewX(-8)" textLength="46" lengthAdjust="spacingAndGlyphs" font-family="'Arial Black','Helvetica Neue',Arial,sans-serif" font-size="20" font-weight="900" letter-spacing="-0.5">APFC</text>
+  </g>
+</svg>
