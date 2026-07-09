@@ -163,6 +163,7 @@
     <div style="display:flex;justify-content:flex-end;margin-bottom:8px">
       <a href="#" class="dashboard-link" onclick="showView('fights',event);return false;">View my ratings →</a>
     </div>
+    <div id="dashboard-loading" class="dash-loading" style="display:none"><span class="spinner"></span> Loading your ratings…</div>
     <div class="card">
       <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:1rem">
         <p class="section-head" style="margin:0">Leaderboard</p>
@@ -225,6 +226,7 @@
 
   <!-- COMMUNITY VIEW (all fights, community average ratings) -->
   <div id="view-community" class="view">
+    <div id="community-loading" class="dash-loading" style="display:none"><span class="spinner"></span> Loading community stats…</div>
     <div class="card">
       <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:1rem">
         <p class="section-head" style="margin:0">Community Leaderboard</p>

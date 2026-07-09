@@ -194,6 +194,14 @@ body.dark .dashboard-link:hover{color:#e05555}
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px) scale(0.9);background:#111827;color:white;padding:10px 20px;border-radius:12px;font-size:13px;font-weight:500;opacity:0;transition:all 0.3s cubic-bezier(0.34,1.56,0.64,1);pointer-events:none;z-index:999;white-space:nowrap;box-shadow:0 4px 16px rgba(0,0,0,0.25)}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0) scale(1)}
 
+/* ── Loading spinner ────────────────────────────────────────────────────────── */
+.dash-loading{display:flex;align-items:center;justify-content:center;gap:10px;padding:32px 0;color:#999;font-size:13px;font-weight:500}
+.spinner{width:20px;height:20px;border:2.5px solid #e8e6e0;border-top-color:#E24B4A;border-radius:50%;animation:rw-spin .7s linear infinite;flex-shrink:0}
+@keyframes rw-spin{to{transform:rotate(360deg)}}
+.view.is-loading .card,.view.is-loading .grid-4,.view.is-loading .grid-2{opacity:.4;pointer-events:none;transition:opacity .15s}
+body.dark .dash-loading{color:#777}
+body.dark .spinner{border-color:#3a3a3a;border-top-color:#e05555}
+
 /* ── Upcoming Events (sidebar) ──────────────────────────────────────────────── */
 .events-columns-layout{display:flex;gap:16px;align-items:flex-start;margin-top:12px}
 .events-col-main{flex:1;min-width:0}

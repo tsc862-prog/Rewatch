@@ -157,7 +157,18 @@ function populateDashOrgs() {
   if (cur && orgs.includes(cur)) sel.value = cur;
 }
 
+function setDashLoading(on) {
+  const view = document.getElementById('view-dashboard');
+  const el   = document.getElementById('dashboard-loading');
+  if (el) el.style.display = on ? '' : 'none';
+  if (view) view.classList.toggle('is-loading', on);
+}
+
 function renderDashboard() {
+  // Initial data still in flight — show the spinner; init() re-renders when ready.
+  if (!appDataReady) { setDashLoading(true); return; }
+  setDashLoading(false);
+
   populateDashOrgs();
   populateDashYears();
   const fights = dashFilter(myRatings);

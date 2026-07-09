@@ -6,8 +6,18 @@
 let communityChartInst = null;
 let communityOrgsLoaded = false;
 
+function setCommunityLoading(on) {
+  const view = document.getElementById('view-community');
+  const el   = document.getElementById('community-loading');
+  if (el) el.style.display = on ? '' : 'none';
+  if (view) view.classList.toggle('is-loading', on);
+}
+
 async function openCommunityDashboard() {
-  if (!communityOrgsLoaded) await loadCommunityFilters();
+  if (!communityOrgsLoaded) {
+    setCommunityLoading(true);
+    await loadCommunityFilters();
+  }
   renderCommunityDashboard();
 }
 
@@ -38,9 +48,15 @@ async function renderCommunityDashboard() {
   const wc   = document.getElementById('community-wc')?.value || null;
   const year = document.getElementById('community-year')?.value;
 
-  const { data, error } = await sb.rpc('community_dashboard', {
-    p_org: org, p_wc: wc, p_year: year ? Number(year) : null
-  });
+  setCommunityLoading(true);
+  let data, error;
+  try {
+    ({ data, error } = await sb.rpc('community_dashboard', {
+      p_org: org, p_wc: wc, p_year: year ? Number(year) : null
+    }));
+  } finally {
+    setCommunityLoading(false);
+  }
   if (error || !data) return;
 
   const s = data.stats || {};
