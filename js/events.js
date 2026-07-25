@@ -1,6 +1,17 @@
 // ── Event Search + Card ───────────────────────────────────────────────────────
 
 
+// Parse a bare "YYYY-MM-DD" event date as LOCAL midnight. Using `new Date(str)`
+// on a date-only string parses it as UTC midnight, which in negative-offset
+// timezones (the Americas) lands before the user's local midnight — that made
+// today's events fail the `>= todayTs` upcoming filter and disappear entirely.
+function eventDateTs(dateStr) {
+  if (!dateStr) return NaN;
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(dateStr);
+  if (m) return new Date(+m[1], +m[2] - 1, +m[3]).getTime();
+  const d = new Date(dateStr); d.setHours(0, 0, 0, 0); return d.getTime();
+}
+
 let eventAcIdx = -1, eventAcResults = [];
 let recentEventsList = [];
 let recentEventsView = [];   // recentEventsList after the org filter (referenced by row onclick)
@@ -72,12 +83,8 @@ async function loadRecentEvents() {
     });
 
   upcomingEventsList = allEvents
-    .filter(e => {
-      if (!e.date) return false;
-      const d = new Date(e.date).getTime();
-      return d >= todayTs;
-    })
-    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    .filter(e => e.date && eventDateTs(e.date) >= todayTs)
+    .sort((a, b) => eventDateTs(a.date) - eventDateTs(b.date));
 
   recentEventsPage = 0;
   populateEventsOrgs(allEvents);
@@ -97,7 +104,7 @@ function renderUpcomingEvents() {
     <div class="upcoming-events-label">Upcoming<span class="upcoming-count">${upcomingEventsView.length}</span></div>
     <div class="upcoming-list">
     ${upcomingEventsView.map((evt, i) => {
-      const isToday = new Date(evt.date).setHours(0,0,0,0) === todayTs;
+      const isToday = eventDateTs(evt.date) === todayTs;
       return `
         <div class="upcoming-event-row${isToday ? ' today' : ''}" onclick="selectEvent(upcomingEventsView[${i}])">
           <div class="upcoming-event-date-block">
@@ -353,9 +360,9 @@ function renderFightRow(fight, opts) {
   eventFightRatings.set(fight.id, { rating: currentVal });
 
   const eventDateStr = fight.event_date || (currentEvent && currentEvent.date) || null;
-  const eventDateParsed = eventDateStr ? new Date(eventDateStr) : null;
-  const today = new Date(); today.setHours(0, 0, 0, 0);
-  const isFuture = eventDateParsed && !isNaN(eventDateParsed) && eventDateParsed > today;
+  const eventTs = eventDateStr ? eventDateTs(eventDateStr) : NaN;
+  const todayTs = new Date().setHours(0, 0, 0, 0);
+  const isFuture = !isNaN(eventTs) && eventTs > todayTs;
 
   const eventVideo = !currentFighter && eventHasVideo(currentEvent);
   const hasVideo = !!(fight.paramount_url || fight.youtube_url || fight.fightpass_url || eventVideo);
