@@ -66,9 +66,17 @@ async function loadRecentEvents() {
   const idsWithResults = new Set(flags.map(f => f.event_id));
   eventsWithFightVideo = new Set(flags.filter(f => f.has_video).map(f => f.event_id));
 
-  // Fetch all events then sort client-side — avoids relying on DB text-date ordering
-  const { data: allEvents } = await sb.from('events').select('*').limit(5000);
-  if (!allEvents?.length) { el.style.display = 'none'; return; }
+  // Fetch all events in pages, then sort client-side — a single row-capped select
+  // silently dropped whichever rows fell past the cap once the table outgrew it
+  // (upcoming events vanished while search, which queries the DB, still found them).
+  const allEvents = [];
+  const PAGE = 1000;
+  for (let from = 0; ; from += PAGE) {
+    const { data: page } = await sb.from('events').select('*').order('id').range(from, from + PAGE - 1);
+    if (page?.length) allEvents.push(...page);
+    if (!page || page.length < PAGE) break;
+  }
+  if (!allEvents.length) { el.style.display = 'none'; return; }
   auditOrgLogos(allEvents);
 
   const startOfToday = new Date(); startOfToday.setHours(0,0,0,0);
