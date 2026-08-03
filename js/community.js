@@ -70,6 +70,8 @@ async function renderCommunityDashboard() {
   renderCommunityMethodChart(data.methods || []);
   renderCommunityWcBars(data.weight_classes || []);
   renderCommunityLeaderboards(data.leaderboards || {}, data.top_fights || []);
+  renderCommunityCards('clb-cards',     data.top_cards || []);
+  renderCommunityCards('clb-cards-low', data.low_cards || []);
 }
 
 function renderCommunityMethodChart(methods) {
@@ -106,6 +108,16 @@ function renderCommunityList(elId, rows, fmt) {
   if (!rows || !rows.length) { el.innerHTML = '<div class="empty" style="padding:12px 0">—</div>'; return; }
   el.innerHTML = rows.map((f, i) =>
     `<div class="lb-row"><span class="lb-rank">${i + 1}</span><button class="nav-link lb-name" onclick="navToFighter('${f.fid}','${(f.name || '').replace(/'/g, "\\'")}')">${escHtml(f.name)}</button><span class="lb-val">${fmt(f.v)}</span></div>`
+  ).join('');
+}
+
+// Highest / lowest rated cards (events with at least 5 community-rated fights)
+function renderCommunityCards(elId, rows) {
+  const el = document.getElementById(elId);
+  if (!el) return;
+  if (!rows.length) { el.innerHTML = '<div class="empty" style="padding:12px 0">—</div>'; return; }
+  el.innerHTML = rows.map((c, i) =>
+    `<div class="lb-row"><span class="lb-rank">${i + 1}</span><button class="nav-link lb-name" onclick="navToEvent('${c.event_id}')" title="${escHtml(c.name)} — ${c.rated} rated fights">${escHtml(c.name)}</button><span class="lb-val">${Number(c.avg_rating).toFixed(2)} ★</span></div>`
   ).join('');
 }
 

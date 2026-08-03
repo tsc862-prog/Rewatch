@@ -393,6 +393,32 @@ function renderLeaderboard() {
       </div>`).join('');
   }
 
+  // Highest / lowest rated cards (events with at least 5 rated fights)
+  const cardMap = {};
+  source.forEach(f => {
+    if (!f.rating || !f.event_id) return;
+    if (!cardMap[f.event_id]) cardMap[f.event_id] = { id: f.event_id, name: f.event_name || '—', total: 0, count: 0 };
+    cardMap[f.event_id].total += Number(f.rating);
+    cardMap[f.event_id].count++;
+  });
+  const cards = Object.values(cardMap).filter(c => c.count >= 5);
+  cards.forEach(c => c.avg = c.total / c.count);
+
+  function renderCardList(elId, sorted) {
+    const el = document.getElementById(elId);
+    if (!el) return;
+    if (!sorted.length) { el.innerHTML = '<div class="empty" style="padding:12px 0">—</div>'; return; }
+    el.innerHTML = sorted.map((c, i) => `
+      <div class="lb-row">
+        <span class="lb-rank">${i + 1}</span>
+        <button class="nav-link lb-name" onclick="navToEvent('${c.id}')" title="${escHtml(c.name)} — ${c.count} rated fights">${escHtml(c.name)}</button>
+        <span class="lb-val">${c.avg.toFixed(2)} ★</span>
+      </div>`).join('');
+  }
+
+  renderCardList('lb-cards',     [...cards].sort((a,b) => b.avg - a.avg || b.count - a.count).slice(0, 10));
+  renderCardList('lb-cards-low', [...cards].sort((a,b) => a.avg - b.avg || b.count - a.count).slice(0, 10));
+
   function renderCustom(elId, sorted, valueFn, formatFn) {
     const el = document.getElementById(elId);
     const filtered = sorted.filter(f => valueFn(f) > 0).slice(0, 10);
