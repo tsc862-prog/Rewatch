@@ -27,8 +27,42 @@ function filterEventsByOrg(list) {
 }
 function eventsOrgChange() {
   recentEventsPage = 0;
+  populateEventsYears(); // year options follow the selected org
   renderUpcomingEvents();
   renderRecentEventsList();
+}
+
+// ── Events year filter + sort ────────────────────────────────────────────────
+function eventsYear() { return document.getElementById('events-year')?.value || ''; }
+function eventsSortDir() { return document.getElementById('events-sort')?.value || 'newest'; }
+
+function eventsFilterChange() {
+  recentEventsPage = 0;
+  renderRecentEventsList();
+}
+
+// Org filter → year filter → sort direction, applied to the Events list.
+// recentEventsList is kept newest-first, so "oldest" is just a reversed copy.
+function filterAndSortRecentEvents() {
+  let list = filterEventsByOrg(recentEventsList);
+  const y = eventsYear();
+  if (y) list = list.filter(e => (e.date || '').startsWith(y));
+  if (eventsSortDir() === 'oldest') list = list.slice().reverse();
+  return list;
+}
+
+// Populate the year dropdown from events matching the current org filter.
+function populateEventsYears() {
+  const sel = document.getElementById('events-year');
+  if (!sel) return;
+  const cur = sel.value;
+  const years = [...new Set(
+    filterEventsByOrg(recentEventsList)
+      .map(e => (e.date || '').slice(0, 4))
+      .filter(y => /^\d{4}$/.test(y))
+  )].sort((a, b) => b - a);
+  sel.innerHTML = '<option value="">All years</option>' + years.map(y => `<option>${y}</option>`).join('');
+  if (cur && years.includes(cur)) sel.value = cur;
 }
 // Populate the org dropdown from the loaded events (UFC first, then by frequency).
 function populateEventsOrgs(events) {
@@ -96,6 +130,7 @@ async function loadRecentEvents() {
 
   recentEventsPage = 0;
   populateEventsOrgs(allEvents);
+  populateEventsYears();
   renderUpcomingEvents();
   renderRecentEventsList();
 }
@@ -161,7 +196,7 @@ function renderRecentEventsList() {
   if (!el) return;
   if (!recentEventsList.length) { el.style.display = 'none'; return; }
 
-  recentEventsView = filterEventsByOrg(recentEventsList);
+  recentEventsView = filterAndSortRecentEvents();
   const total = recentEventsView.length;
   const totalPages = Math.max(1, Math.ceil(total / RECENT_EVENTS_PAGE_SIZE));
   if (recentEventsPage > totalPages - 1) recentEventsPage = totalPages - 1;
@@ -169,7 +204,7 @@ function renderRecentEventsList() {
   const pageEvents = recentEventsView.slice(start, start + RECENT_EVENTS_PAGE_SIZE);
 
   if (!total) {
-    el.innerHTML = '<div class="recent-events-label">Events</div><div class="empty" style="padding:12px 0">No events for this organization.</div>';
+    el.innerHTML = '<div class="recent-events-label">Events</div><div class="empty" style="padding:12px 0">No events match these filters.</div>';
     el.style.display = 'block';
     return;
   }

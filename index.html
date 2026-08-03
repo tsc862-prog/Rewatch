@@ -83,6 +83,19 @@
             <option value="">All orgs</option>
           </select>
         </div>
+        <div class="form-group" style="margin:0">
+          <label>Year</label>
+          <select id="events-year" onchange="eventsFilterChange()" style="min-width:110px">
+            <option value="">All years</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin:0">
+          <label>Sort</label>
+          <select id="events-sort" onchange="eventsFilterChange()" style="min-width:130px">
+            <option value="newest">Newest first</option>
+            <option value="oldest">Oldest first</option>
+          </select>
+        </div>
       </div>
 
       <div class="events-columns-layout">
