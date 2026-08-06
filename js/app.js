@@ -15,16 +15,16 @@ function toggleDarkMode() {
 
 let navReturnContext = null; // { type: 'event'|'fighter', data: obj }
 
-function activateView(viewId, navLabel) {
+function activateView(viewId) {
+  const v = viewId.replace(/^view-/, '');
   document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
-  document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
   document.getElementById(viewId).classList.add('active');
-  document.querySelectorAll('.nav-btn').forEach(btn => { if (btn.textContent.trim() === navLabel) btn.classList.add('active'); });
+  document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.view === v));
 }
 
 function navToFighter(id, name) {
   navReturnContext = currentEvent ? { type: 'event', data: currentEvent } : null;
-  activateView('view-fighter', 'Fighter');
+  activateView('view-fighter');
   selectFighterForPage({ id, name });
 }
 
@@ -32,7 +32,7 @@ async function navToEvent(eventId) {
   navReturnContext = currentFighter ? { type: 'fighter', data: currentFighter } : null;
   const { data } = await sb.from('events').select('*').eq('id', eventId).single();
   if (!data) return;
-  activateView('view-log', 'Rate event');
+  activateView('view-log');
   selectEvent(data);
 }
 
@@ -107,7 +107,7 @@ async function logout() {
   myRatings = [];
   updateAuthUI();
   renderTable();
-  if (typeof renderRecentEventsList === 'function') renderRecentEventsList();
+  if (typeof renderActiveEventsTab === 'function') renderActiveEventsTab();
 }
 
 async function enterApp() {
@@ -116,9 +116,12 @@ async function enterApp() {
   await loadRatings();
   appDataReady = true;
   renderTable();
-  if (typeof renderRecentEventsList === 'function') renderRecentEventsList();
-  if (currentEvent) renderEventCard();
-  if (currentFighter) renderFighterCard();
+  if (typeof renderActiveEventsTab === 'function') renderActiveEventsTab();
+  // Only refresh the card the user is looking at — the two cards clear each
+  // other's DOM on render, so re-rendering both would blank the visible one
+  const activeViewEl = document.querySelector('.view.active');
+  if (currentEvent && activeViewEl && activeViewEl.id === 'view-log') renderEventCard();
+  else if (currentFighter && activeViewEl && activeViewEl.id === 'view-fighter') renderFighterCard();
 }
 
 function showAuthScreen() {
@@ -279,6 +282,26 @@ function hl(name, q) {
 function shortM(m) {
   if (!m) return '—';
   return m.replace('Decision (','').replace(')','');
+}
+
+// "2026-08-02" → "Aug 2, 2026"; anything unparseable falls through unchanged
+function formatEventDate(dateStr) {
+  if (!dateStr) return '';
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(dateStr);
+  if (!m) return dateStr;
+  return new Date(+m[1], +m[2] - 1, +m[3]).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+// Top N methods with the long tail rolled into "Other" — the raw data has dozens of
+// near-duplicate method strings that turned the chart legends into a wall of chips
+function groupMethodCounts(labels, counts, top) {
+  top = top || 6;
+  const pairs = labels.map((l, i) => [l, counts[i]]).sort((a, b) => b[1] - a[1]);
+  if (pairs.length <= top + 1) return { labels: pairs.map(p => p[0]), counts: pairs.map(p => p[1]) };
+  const head = pairs.filter(p => p[0] !== 'Other').slice(0, top);
+  const headSet = new Set(head);
+  const other = pairs.reduce((a, p) => headSet.has(p) ? a : a + p[1], 0);
+  return { labels: head.map(p => p[0]).concat('Other'), counts: head.map(p => p[1]).concat(other) };
 }
 
 function slugPosType(t) { return (t||'').toLowerCase().replace(/\s+/g,'-'); }

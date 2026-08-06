@@ -26,6 +26,8 @@ header{display:flex;align-items:center;justify-content:space-between;margin-bott
 .section-head{font-size:15px;font-weight:700;margin-bottom:1rem;color:#111827;letter-spacing:-0.2px}
 
 /* ── Forms ──────────────────────────────────────────────────────────────────── */
+select{padding:8px 12px;border:1.5px solid #e8e6e0;border-radius:10px;font-size:13px;background:white;color:#1c1c1a;outline:none;font-family:inherit;cursor:pointer}
+body.dark select{background:#1e1e1e;border-color:#333;color:#d4d4d4}
 .form-group{display:flex;flex-direction:column;gap:5px;position:relative;margin-bottom:14px}
 .form-group label{font-size:11px;font-weight:600;color:#aaa;text-transform:uppercase;letter-spacing:0.5px}
 .form-group input,.form-group textarea,.form-group select{width:100%;padding:10px 14px;border:1.5px solid #e8e6e0;border-radius:10px;font-size:14px;background:white;color:#1c1c1a;outline:none;font-family:inherit;transition:border-color 0.15s,box-shadow 0.15s}
@@ -202,35 +204,27 @@ body.dark .dashboard-link:hover{color:#e05555}
 body.dark .dash-loading{color:#777}
 body.dark .spinner{border-color:#3a3a3a;border-top-color:#e05555}
 
-/* ── Upcoming Events (sidebar) ──────────────────────────────────────────────── */
-.events-columns-layout{display:flex;gap:16px;align-items:flex-start;margin-top:12px}
-.events-col-main{flex:1;min-width:0}
-.events-col-side{width:260px;flex-shrink:0}
-.upcoming-events-label{font-size:10px;font-weight:700;color:#ccc;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px}
-.upcoming-event-row{display:flex;align-items:center;gap:10px;padding:8px 10px;background:#fafaf8;border-radius:10px;margin-bottom:5px;cursor:pointer;transition:all 0.15s;border:1.5px solid #f0ede8}
+/* ── Events / Upcoming Tabs ─────────────────────────────────────────────────── */
+.events-tabs{display:inline-flex;gap:4px;background:#f1efe8;border-radius:10px;padding:3px;margin-top:14px}
+.events-tab{display:inline-flex;align-items:center;gap:7px;background:transparent;border:none;padding:7px 16px;font-size:13px;font-weight:600;color:#888;cursor:pointer;border-radius:8px;transition:all 0.15s;font-family:inherit}
+.events-tab.active{background:white;color:#111827;box-shadow:0 1px 3px rgba(0,0,0,0.08)}
+.events-tab:hover:not(.active){color:#555}
+.events-tab-count{font-size:10px;font-weight:700;color:#aaa;background:#e7e4dd;border-radius:10px;padding:1px 7px}
+.events-tab.active .events-tab-count{background:#FCEBEB;color:#E24B4A}
+#recent-events,#upcoming-events{margin-top:12px}
+
+/* ── Upcoming Events ────────────────────────────────────────────────────────── */
+.upcoming-event-row{display:flex;align-items:center;gap:11px;padding:9px 12px;background:#fafaf8;border-radius:10px;margin-bottom:6px;cursor:pointer;transition:all 0.15s;border:1.5px solid #f0ede8}
 .upcoming-event-row:hover{background:white;border-color:#ddd;box-shadow:0 2px 8px rgba(0,0,0,0.08);transform:translateY(-1px)}
 .upcoming-event-row.today{background:#fff8f8;border-color:#f5c6c6}
 .upcoming-event-row.today:hover{background:white;border-color:#E24B4A;box-shadow:0 2px 8px rgba(226,75,74,0.12)}
-.upcoming-event-date-block{display:flex;flex-direction:column;align-items:center;min-width:30px;flex-shrink:0}
-.upcoming-event-month{font-size:8px;font-weight:700;color:#E24B4A;text-transform:uppercase;letter-spacing:0.5px;line-height:1}
+.upcoming-event-date-block{display:flex;flex-direction:column;align-items:center;min-width:34px;flex-shrink:0}
+.upcoming-event-month{font-size:9px;font-weight:700;color:#E24B4A;text-transform:uppercase;letter-spacing:0.5px;line-height:1}
 .upcoming-event-day{font-size:18px;font-weight:800;color:#111827;letter-spacing:-1px;line-height:1.1}
 .upcoming-event-row.today .upcoming-event-day{color:#E24B4A;font-size:16px}
 .upcoming-event-info{flex:1;min-width:0}
-.upcoming-event-name{font-size:12px;font-weight:600;color:#111827;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.upcoming-event-meta{font-size:11px;color:#bbb;margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.upcoming-event-links{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
-.upcoming-events-label{display:flex;align-items:center;gap:6px}
-.upcoming-count{font-size:9px;font-weight:700;color:#aaa;background:#f0ede8;border-radius:10px;padding:1px 7px;letter-spacing:0}
-/* Height-bounded scroll keeps the sidebar from ever running taller than the main list */
-.upcoming-list{max-height:430px;overflow-y:auto;padding-right:4px}
-.upcoming-list::-webkit-scrollbar{width:6px}
-.upcoming-list::-webkit-scrollbar-thumb{background:#e0ddd6;border-radius:3px}
-.upcoming-list::-webkit-scrollbar-track{background:transparent}
-@media(max-width:700px){
-  .events-columns-layout{flex-direction:column;gap:20px}
-  .events-col-side{width:100%}
-  .upcoming-list{max-height:none;overflow:visible;padding-right:0}
-}
+.upcoming-event-name{font-size:12px;font-weight:600;color:#111827;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.upcoming-event-meta{font-size:11px;color:#bbb;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
 /* ── Recent Events List ─────────────────────────────────────────────────────── */
 .recent-events-label{font-size:10px;font-weight:700;color:#ccc;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;margin-top:0}
@@ -445,10 +439,15 @@ body.dark .import-box p{color:#666}
 /* Toast */
 body.dark .toast{background:#e0e0e0;color:#111}
 
+/* Events / Upcoming Tabs */
+body.dark .events-tabs{background:#252525}
+body.dark .events-tab{color:#888}
+body.dark .events-tab:hover:not(.active){color:#bbb}
+body.dark .events-tab.active{background:#1e1e1e;color:#e0e0e0;box-shadow:0 1px 3px rgba(0,0,0,0.3)}
+body.dark .events-tab-count{background:#333;color:#999}
+body.dark .events-tab.active .events-tab-count{background:#3a1515;color:#e05555}
+
 /* Upcoming Events */
-body.dark .upcoming-events-label{color:#555}
-body.dark .upcoming-count{background:#2a2a2a;color:#777}
-body.dark .upcoming-list::-webkit-scrollbar-thumb{background:#3a3a3a}
 body.dark .upcoming-event-row{background:#1a1a1a;border-color:#2a2a2a}
 body.dark .upcoming-event-row:hover{background:#1e1e1e;border-color:#444;box-shadow:0 2px 8px rgba(0,0,0,0.3)}
 body.dark .upcoming-event-row.today{background:#1f1515;border-color:#4a2020}

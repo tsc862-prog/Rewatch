@@ -27,10 +27,28 @@ function updateSortIndicators() {
 }
 
 function showView(v, e) {
-  document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
-  document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
-  document.getElementById('view-'+v).classList.add('active');
-  if (e && e.target) e.target.classList.add('active');
+  const wasActive = document.getElementById('view-'+v).classList.contains('active');
+  activateView('view-'+v);
+  // Clicking the tab you're already on resets it to its search screen. Without
+  // this, a card opened via a cross-link (event → fighter or back) can only be
+  // left through its Back button, which itself leads to the other view — the
+  // search screens become unreachable.
+  if (wasActive) {
+    if (v === 'log') {
+      navReturnContext = null;
+      if (currentEvent) closeEvent();
+      else { const s = document.getElementById('event-search'); if (s && s.value) { s.value = ''; renderActiveEventsTab(); } }
+    } else if (v === 'fighter') {
+      navReturnContext = null;
+      if (currentFighter) closeFighterCard();
+      else document.getElementById('fighter-page-search').value = '';
+    }
+  } else {
+    // Re-render the view's open card on entry: opening the other card cleared
+    // this one's DOM (fight-row ids must stay unique across the two cards)
+    if (v === 'log' && currentEvent) renderEventCard();
+    if (v === 'fighter' && currentFighter) renderFighterCard();
+  }
   if (v === 'fights') renderTable();
   if (v === 'dashboard') renderDashboard();
   if (v === 'community') openCommunityDashboard();
@@ -278,10 +296,11 @@ async function renderActivityFeed() {
 function renderMethodChart() {
   const counts = {};
   dashFilter(myRatings).forEach(f => { const k = f.method||'Other'; counts[k]=(counts[k]||0)+1; });
-  const labels = Object.keys(counts), data = Object.values(counts);
+  const grouped = groupMethodCounts(Object.keys(counts), Object.values(counts));
+  const labels = grouped.labels, data = grouped.counts;
   const colors = ['#E24B4A','#1D9E75','#378ADD','#BA7517','#7F77DD','#D4537E','#888780'];
   document.getElementById('method-legend').innerHTML = labels.map((l,i) =>
-    `<span class="legend-item"><span class="legend-dot" style="background:${colors[i%colors.length]}"></span>${escHtml(l)} <strong>${data[i]}</strong></span>`
+    `<span class="legend-item"><span class="legend-dot" style="background:${colors[i%colors.length]}"></span>${escHtml(l)} <strong>${data[i].toLocaleString()}</strong></span>`
   ).join('');
   const ctx = document.getElementById('methodChart');
   if (methodChartInst) { methodChartInst.destroy(); methodChartInst = null; }

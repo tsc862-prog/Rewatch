@@ -28,8 +28,44 @@ function filterEventsByOrg(list) {
 function eventsOrgChange() {
   recentEventsPage = 0;
   populateEventsYears(); // year options follow the selected org
-  renderUpcomingEvents();
-  renderRecentEventsList();
+  updateUpcomingTabCount();
+  renderActiveEventsTab();
+}
+
+// ── Events / Upcoming tabs ───────────────────────────────────────────────────
+let eventsTab = 'past';
+
+function switchEventsTab(tab) {
+  eventsTab = tab;
+  document.getElementById('events-tab-past').classList.toggle('active', tab === 'past');
+  document.getElementById('events-tab-upcoming').classList.toggle('active', tab === 'upcoming');
+  // Year + sort only apply to the past-events list
+  document.getElementById('events-year-group').style.display = tab === 'past' ? '' : 'none';
+  document.getElementById('events-sort-group').style.display = tab === 'past' ? '' : 'none';
+  const search = document.getElementById('event-search');
+  if (search && search.value) search.value = ''; // search results render into the past list
+  renderActiveEventsTab();
+}
+
+function renderActiveEventsTab() {
+  const past = document.getElementById('recent-events');
+  const upcoming = document.getElementById('upcoming-events');
+  if (!past || !upcoming) return;
+  if (eventsTab === 'upcoming') {
+    past.style.display = 'none';
+    renderUpcomingEvents();
+  } else {
+    upcoming.style.display = 'none';
+    renderRecentEventsList();
+  }
+}
+
+function updateUpcomingTabCount() {
+  const badge = document.getElementById('upcoming-tab-count');
+  if (!badge) return;
+  const n = filterEventsByOrg(upcomingEventsList).length;
+  badge.textContent = n;
+  badge.style.display = n ? '' : 'none';
 }
 
 // ── Events year filter + sort ────────────────────────────────────────────────
@@ -131,22 +167,19 @@ async function loadRecentEvents() {
   recentEventsPage = 0;
   populateEventsOrgs(allEvents);
   populateEventsYears();
-  renderUpcomingEvents();
-  renderRecentEventsList();
+  updateUpcomingTabCount();
+  renderActiveEventsTab();
 }
 
 function renderUpcomingEvents() {
   const el = document.getElementById('upcoming-events');
   if (!el) return;
   upcomingEventsView = filterEventsByOrg(upcomingEventsList);
-  if (!upcomingEventsView.length) { el.style.display = 'none'; return; }
 
   const todayTs = new Date().setHours(0,0,0,0);
 
-  el.innerHTML = `
-    <div class="upcoming-events-label">Upcoming<span class="upcoming-count">${upcomingEventsView.length}</span></div>
-    <div class="upcoming-list">
-    ${upcomingEventsView.map((evt, i) => {
+  el.innerHTML = upcomingEventsView.length
+    ? upcomingEventsView.map((evt, i) => {
       const isToday = eventDateTs(evt.date) === todayTs;
       return `
         <div class="upcoming-event-row${isToday ? ' today' : ''}" onclick="selectEvent(upcomingEventsView[${i}])">
@@ -160,24 +193,10 @@ function renderUpcomingEvents() {
           </div>
           <span class="recent-event-chevron">›</span>
         </div>`;
-    }).join('')}
-    </div>`;
+    }).join('')
+    : '<div class="empty" style="padding:12px 0">No upcoming events match these filters.</div>';
   el.style.display = 'block';
-  requestAnimationFrame(syncUpcomingHeight);
 }
-
-// Match the Upcoming scroll list to the height of the main (Recent) list, so the
-// two columns are the same length; overflow scrolls. No-op on stacked mobile layout.
-function syncUpcomingHeight() {
-  const main  = document.querySelector('.events-col-main');
-  const list  = document.querySelector('.upcoming-list');
-  const label = document.querySelector('.upcoming-events-label');
-  if (!main || !list) return;
-  if (window.innerWidth <= 700) { list.style.maxHeight = ''; return; } // let CSS handle mobile
-  const h = main.offsetHeight - (label ? label.offsetHeight + 8 : 0); // 8 = label margin-bottom
-  list.style.maxHeight = Math.max(h, 120) + 'px';
-}
-window.addEventListener('resize', syncUpcomingHeight);
 
 function formatUpcomingMonth(dateStr) {
   if (!dateStr) return '';
@@ -204,7 +223,7 @@ function renderRecentEventsList() {
   const pageEvents = recentEventsView.slice(start, start + RECENT_EVENTS_PAGE_SIZE);
 
   if (!total) {
-    el.innerHTML = '<div class="recent-events-label">Events</div><div class="empty" style="padding:12px 0">No events match these filters.</div>';
+    el.innerHTML = '<div class="empty" style="padding:12px 0">No events match these filters.</div>';
     el.style.display = 'block';
     return;
   }
@@ -213,7 +232,6 @@ function renderRecentEventsList() {
   myRatings.forEach(r => { if (r.event_id) ratedByEvent[r.event_id] = (ratedByEvent[r.event_id] || 0) + 1; });
 
   el.innerHTML = `
-    <div class="recent-events-label">Events</div>
     ${pageEvents.map((evt, i) => {
       const globalIdx = start + i;
       const ratedCount = ratedByEvent[evt.id] || 0;
@@ -222,7 +240,7 @@ function renderRecentEventsList() {
           <div class="recent-event-left">
             <div class="recent-event-name">${orgBadge(evt.organization)}${escHtml(evt.name)}</div>
             <div class="recent-event-meta">
-              ${evt.date || '—'}${evt.location ? ' · ' + escHtml(evt.location) : ''}
+              ${formatEventDate(evt.date) || '—'}${evt.location ? ' · ' + escHtml(evt.location) : ''}
             </div>
           </div>
           <div class="recent-event-right">
@@ -239,7 +257,6 @@ function renderRecentEventsList() {
       <button class="pag-btn" onclick="recentEventsPageChange(1)" ${recentEventsPage >= totalPages - 1 ? 'disabled' : ''}>Next →</button>
     </div>` : ''}`;
   el.style.display = 'block';
-  requestAnimationFrame(syncUpcomingHeight);
 }
 
 function recentEventsPageChange(dir) {
@@ -258,14 +275,14 @@ let savingFights = new Set(); // prevent double-saves
 function eventSearch() {
   clearTimeout(eventSearchTimer);
   const q = document.getElementById('event-search').value.trim();
-  if (!q) { renderRecentEventsList(); return; }
+  if (!q) { renderActiveEventsTab(); return; }
   eventSearchTimer = setTimeout(doEventSearch, 300);
 }
 
 async function doEventSearch() {
   const q = document.getElementById('event-search').value.trim();
   eventAcIdx = -1;
-  if (q.length < 2) { renderRecentEventsList(); return; }
+  if (q.length < 2) { renderActiveEventsTab(); return; }
 
   const { data, error } = await sb
     .from('events')
@@ -281,6 +298,9 @@ async function doEventSearch() {
 function renderEventSearchResults(q) {
   const el = document.getElementById('recent-events');
   if (!el) return;
+  // Results render into the past-events container regardless of the active tab
+  const upcoming = document.getElementById('upcoming-events');
+  if (upcoming) upcoming.style.display = 'none';
   const data = eventAcResults;
   if (!data.length) {
     el.innerHTML = '<div class="recent-events-label">No events found</div>';
@@ -298,7 +318,7 @@ function renderEventSearchResults(q) {
         <div class="recent-event-row" onclick="eventAcPick(event,${i})">
           <div class="recent-event-left">
             <div class="recent-event-name">${orgBadge(evt.organization)}${hl(escHtml(evt.name), ql)}</div>
-            <div class="recent-event-meta">${evt.date || '—'}${evt.location ? ' · ' + escHtml(evt.location) : ''}</div>
+            <div class="recent-event-meta">${formatEventDate(evt.date) || '—'}${evt.location ? ' · ' + escHtml(evt.location) : ''}</div>
           </div>
           <div class="recent-event-right">
             ${hasAnyVideo(evt) ? '<span class="video-dot" title="Video available">▶</span>' : ''}
@@ -316,7 +336,7 @@ function eventSearchKey(e) {
   if (e.key === 'ArrowDown') { e.preventDefault(); eventAcIdx = Math.min(eventAcIdx+1, items.length-1); items.forEach((el,i) => el.classList.toggle('focused', i===eventAcIdx)); }
   else if (e.key === 'ArrowUp') { e.preventDefault(); eventAcIdx = Math.max(0, eventAcIdx-1); items.forEach((el,i) => el.classList.toggle('focused', i===eventAcIdx)); }
   else if (e.key === 'Enter') { if (eventAcIdx >= 0 && eventAcResults[eventAcIdx]) { e.preventDefault(); selectEvent(eventAcResults[eventAcIdx]); } }
-  else if (e.key === 'Escape') { document.getElementById('event-search').value = ''; renderRecentEventsList(); }
+  else if (e.key === 'Escape') { document.getElementById('event-search').value = ''; renderActiveEventsTab(); }
 }
 
 function eventBlur() {}
@@ -361,7 +381,7 @@ function renderEventCard() {
             <span class="event-title">${orgBadge(currentEvent.organization)}${escHtml(currentEvent.name)}</span>
           </div>
           <div class="event-meta">
-            ${currentEvent.date ? `<span>${currentEvent.date}</span>` : ''}
+            ${currentEvent.date ? `<span>${formatEventDate(currentEvent.date)}</span>` : ''}
             ${currentEvent.location ? `<span>${currentEvent.location}</span>` : ''}
             ${eventWatchBtn(currentEvent)}
           </div>
@@ -375,6 +395,13 @@ function renderEventCard() {
 
   el.style.display = 'block';
   document.getElementById('event-search-card').style.display = 'none';
+
+  // Mirror of renderFighterCard: clear the fighter card's DOM so fight-row
+  // element ids stay unique. showView re-renders it from currentFighter.
+  const fc = document.getElementById('fighter-card');
+  if (fc) { fc.innerHTML = ''; fc.style.display = 'none'; }
+  const fsc = document.getElementById('fighter-search-card');
+  if (fsc) fsc.style.display = 'block';
 }
 
 function getFighterRecord(name, beforeDateStr) {
@@ -407,7 +434,10 @@ function renderFightRow(fight, opts) {
   const todayTs = new Date().setHours(0, 0, 0, 0);
   const isFuture = !isNaN(eventTs) && eventTs > todayTs;
 
-  const eventVideo = !currentFighter && eventHasVideo(currentEvent);
+  // Event-level video links only count when the row renders inside the event
+  // card (showEvent rows belong to the fighter card, where currentEvent may be
+  // a stale leftover from earlier navigation)
+  const eventVideo = !opts.showEvent && eventHasVideo(currentEvent);
   const hasVideo = !!(fight.paramount_url || fight.youtube_url || fight.fightpass_url || eventVideo);
   const showResult = !isFuture && (isRated || !hasVideo);
 
@@ -433,11 +463,13 @@ function renderFightRow(fight, opts) {
       </div>`
     : `<div class="fight-row-result spoiler">Rate to reveal result</div>`;
 
+  // Win/loss coloring is relative to a named fighter and only wanted on the
+  // fighter card — keying it off the currentFighter global colored event-card
+  // rows against whichever fighter was viewed last
   let wlClass = '';
-  if (showResult && currentFighter && fight.winner_name) {
-    wlClass = fight.winner_name === currentFighter.name ? 'fight-win' : 'fight-loss';
-  } else if (showResult && currentFighter && !fight.winner_name) {
-    wlClass = 'fight-draw';
+  if (showResult && opts.perspective) {
+    wlClass = !fight.winner_name ? 'fight-draw'
+      : fight.winner_name === opts.perspective ? 'fight-win' : 'fight-loss';
   }
 
   return `
@@ -458,7 +490,7 @@ function renderFightRow(fight, opts) {
         ${fight.fight_position_type ? '<span class="pos-type-tag pos-'+slugPosType(fight.fight_position_type)+'">'+escHtml(fight.fight_position_type)+'</span>' : ''}
         ${fight.is_title ? '<span class="title-tag">TITLE BOUT</span>' : ''}
         <span class="fight-row-wc">${escHtml(fight.weight_class || '—')}</span>
-        ${opts.showEvent && fight.event_name ? '<span class="submeta-sep">·</span><button class="nav-link" onclick="navToEvent(\''+fight.event_id+'\')">'+escHtml(fight.event_name)+'</button>'+(fight.event_date?'<span class="submeta-sep">·</span>'+fight.event_date:'') : ''}
+        ${opts.showEvent && fight.event_name ? '<span class="submeta-sep">·</span><button class="nav-link" onclick="navToEvent(\''+fight.event_id+'\')">'+escHtml(fight.event_name)+'</button>'+(fight.event_date?'<span class="submeta-sep">·</span>'+formatEventDate(fight.event_date):'') : ''}
       </div>
       ${fight.notes ? '<div class="fight-row-notes-info">'+escHtml(fight.notes)+'</div>' : ''}
       ${!isFuture ? `<input class="fight-row-notes" id="notes-${fight.id}" type="text" placeholder="Notes…" value="${escHtml(notes)}"
@@ -474,7 +506,7 @@ function closeEvent() {
     currentEvent = null;
     currentEventFights = [];
     eventFightRatings.clear();
-    activateView('view-fighter', 'Fighter');
+    activateView('view-fighter');
     selectFighterForPage(ctx.data);
     return;
   }
@@ -485,8 +517,7 @@ function closeEvent() {
   currentEventFights = [];
   eventFightRatings.clear();
   navReturnContext = null;
-  renderUpcomingEvents();
-  renderRecentEventsList();
+  renderActiveEventsTab();
 }
 
 function updateEventProgress() {
@@ -587,21 +618,24 @@ async function saveFightRating(fightId) {
 
   if (error) { showToast('Error: ' + error.message); return; }
 
-  // Update local cache — find fight from whichever page is active
-  const inEventCtx = currentEventFights.some(f => f.id === fightId);
-  const fight = inEventCtx
-    ? currentEventFights.find(f => f.id === fightId)
-    : currentFighterFights.find(f => f.id === fightId);
+  // Update local cache — resolve the fight from the card the rated row lives in
+  // (the same fight can exist in both lists when the event and fighter overlap)
+  const row = document.getElementById('fight-row-' + fightId);
+  const inFighterCard = !!(row && row.closest('#fighter-card'));
+  const fight = inFighterCard
+    ? currentFighterFights.find(f => f.id === fightId)
+    : currentEventFights.find(f => f.id === fightId) || currentFighterFights.find(f => f.id === fightId);
   const fullEntry = { ...fight, ...entry };
   const idx = myRatings.findIndex(x => x.fight_id === fightId);
   if (idx >= 0) myRatings[idx] = fullEntry; else myRatings.unshift(fullEntry);
 
   // Re-render just this fight row to reveal result
-  const row = document.getElementById('fight-row-' + fightId);
-  if (row) row.outerHTML = renderFightRow(fight, inEventCtx ? {} : { showEvent: true });
+  if (row) row.outerHTML = renderFightRow(fight, inFighterCard
+    ? { showEvent: true, perspective: currentFighter && currentFighter.name }
+    : {});
 
-  if (currentFighter) updateFighterProgress();
-  else updateEventProgress();
+  updateFighterProgress();
+  updateEventProgress();
   showToast(existing ? 'Rating updated' : 'Fight rated!');
   loadFightAggregates();
 }

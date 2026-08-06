@@ -75,8 +75,9 @@ async function renderCommunityDashboard() {
 }
 
 function renderCommunityMethodChart(methods) {
-  const labels = methods.map(m => m.method);
-  const counts = methods.map(m => m.count);
+  const grouped = groupMethodCounts(methods.map(m => m.method), methods.map(m => m.count));
+  const labels = grouped.labels;
+  const counts = grouped.counts;
   const palette = ['#E24B4A','#1D9E75','#378ADD','#BA7517','#7F77DD','#D4537E','#888780'];
   const colors = labels.map((_, i) => palette[i % palette.length]);
   document.getElementById('c-method-legend').innerHTML = labels.map((l, i) =>

@@ -49,10 +49,10 @@
       <span class="logo-text">UFC Rewatch Tracker</span>
     </div>
     <nav class="nav">
-      <button class="nav-btn active" onclick="showView('log',event)">Event</button>
-      <button class="nav-btn" onclick="showView('fighter',event)">Fighter</button>
-      <button class="nav-btn" onclick="showView('dashboard',event)">Dashboard</button>
-      <button class="nav-btn" onclick="showView('community',event)">Community</button>
+      <button class="nav-btn active" data-view="log" onclick="showView('log',event)">Event</button>
+      <button class="nav-btn" data-view="fighter" onclick="showView('fighter',event)">Fighter</button>
+      <button class="nav-btn" data-view="dashboard" onclick="showView('dashboard',event)">Dashboard</button>
+      <button class="nav-btn" data-view="community" onclick="showView('community',event)">Community</button>
     </nav>
     <div class="header-right">
       <span class="user-email" id="user-email"></span>
@@ -83,13 +83,13 @@
             <option value="">All orgs</option>
           </select>
         </div>
-        <div class="form-group" style="margin:0">
+        <div class="form-group" style="margin:0" id="events-year-group">
           <label>Year</label>
           <select id="events-year" onchange="eventsFilterChange()" style="min-width:110px">
             <option value="">All years</option>
           </select>
         </div>
-        <div class="form-group" style="margin:0">
+        <div class="form-group" style="margin:0" id="events-sort-group">
           <label>Sort</label>
           <select id="events-sort" onchange="eventsFilterChange()" style="min-width:130px">
             <option value="newest">Newest first</option>
@@ -98,17 +98,15 @@
         </div>
       </div>
 
-      <div class="events-columns-layout">
-        <div class="events-col-main">
-          <div id="recent-events" style="display:none"></div>
-          <div id="no-db-msg" style="display:none">
-            <div class="import-box">
-              <p>No fight data found in the database. Please contact your administrator.</p>
-            </div>
-          </div>
-        </div>
-        <div class="events-col-side">
-          <div id="upcoming-events" style="display:none"></div>
+      <div class="events-tabs">
+        <button class="events-tab active" id="events-tab-past" onclick="switchEventsTab('past')">Events</button>
+        <button class="events-tab" id="events-tab-upcoming" onclick="switchEventsTab('upcoming')">Upcoming<span class="events-tab-count" id="upcoming-tab-count" style="display:none"></span></button>
+      </div>
+      <div id="recent-events" style="display:none"></div>
+      <div id="upcoming-events" style="display:none"></div>
+      <div id="no-db-msg" style="display:none">
+        <div class="import-box">
+          <p>No fight data found in the database. Please contact your administrator.</p>
         </div>
       </div>
     </div>

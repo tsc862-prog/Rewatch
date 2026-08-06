@@ -125,13 +125,21 @@ function renderFighterCard() {
       ${statsStrip}
       <div class="event-fights">
         ${currentFighterFights.length
-          ? currentFighterFights.map(f => renderFightRow(f, { showEvent: true })).join('')
+          ? currentFighterFights.map(f => renderFightRow(f, { showEvent: true, perspective: currentFighter.name })).join('')
           : '<div class="empty">No fights found for this fighter.</div>'}
       </div>
     </div>`;
 
   el.style.display = 'block';
   document.getElementById('fighter-search-card').style.display = 'none';
+
+  // Clear the event card's DOM — both cards give fight rows per-fight element
+  // ids, and a duplicate id would hijack star/notes updates for shared fights.
+  // showView re-renders it from currentEvent when the user returns to the tab.
+  const ec = document.getElementById('event-card');
+  if (ec) { ec.innerHTML = ''; ec.style.display = 'none'; }
+  const esc = document.getElementById('event-search-card');
+  if (esc) esc.style.display = 'block';
 }
 
 function updateFighterProgress() {
@@ -169,7 +177,7 @@ function closeFighterCard() {
     navReturnContext = null;
     currentFighter = null;
     currentFighterFights = [];
-    activateView('view-log', 'Rate event');
+    activateView('view-log');
     selectEvent(ctx.data);
     return;
   }
