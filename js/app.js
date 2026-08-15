@@ -217,6 +217,18 @@ const ORG_LOGOS = {
   'A1 Combat':       'a1combat.svg',
   'APFC':            'apfc.svg',
   'iKON FC':         'ikonfc.svg',
+  'ONE Championship':'onechampionship.svg',
+  'Tuff-N-Uff':      'tuffnuff.svg',
+  'Alaska FC':       'alaskafc.svg',
+  'Shooto Brazil':   'shootobrazil.svg',
+  'Brave CF':        'bravecf.svg',
+  'BFL':             'bfl.svg',
+  'Unified MMA':     'unifiedmma.svg',
+  'INKA MMA':        'inkamma.svg',
+  'WXC':             'wxc.svg',
+  'FAC':             'fac.svg',
+  'ZFN':             'zfn.svg',
+  'Bison Kombat':    'bisonkombat.svg',
 };
 
 function orgBadge(org) {

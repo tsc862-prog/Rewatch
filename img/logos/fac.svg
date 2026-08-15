@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 66 24" role="img" aria-label="FAC">
+  <g fill="#6A2E9E">
+    <polygon points="0,12 10,4 10,20"/><rect x="12" y="4" width="4" height="16"/>
+    <text x="24" y="18" transform="skewX(-8)" textLength="35" lengthAdjust="spacingAndGlyphs" font-family="'Arial Black','Helvetica Neue',Arial,sans-serif" font-size="20" font-weight="900" letter-spacing="-0.5">FAC</text>
+  </g>
+</svg>

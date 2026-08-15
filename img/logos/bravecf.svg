@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 89 24" role="img" aria-label="Brave CF">
+  <g fill="#9B2C3F">
+    <polygon points="8,3.5 15.5,19 0.5,19" fill="none" stroke="#9B2C3F" stroke-width="2.6" stroke-linejoin="round"/>
+    <text x="24" y="18" transform="skewX(-8)" textLength="58" lengthAdjust="spacingAndGlyphs" font-family="'Arial Black','Helvetica Neue',Arial,sans-serif" font-size="20" font-weight="900" letter-spacing="-0.5">BRAVE</text>
+  </g>
+</svg>

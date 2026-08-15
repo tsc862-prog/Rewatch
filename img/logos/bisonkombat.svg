@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 89 24" role="img" aria-label="Bison Kombat">
+  <g fill="#8B6B45">
+    <polygon points="0.5,4.5 4.5,3.5 7.5,17.5 4,16.5"/><polygon points="15.5,4.5 11.5,3.5 8.5,17.5 12,16.5"/>
+    <text x="24" y="18" transform="skewX(-8)" textLength="58" lengthAdjust="spacingAndGlyphs" font-family="'Arial Black','Helvetica Neue',Arial,sans-serif" font-size="20" font-weight="900" letter-spacing="-0.5">BISON</text>
+  </g>
+</svg>
