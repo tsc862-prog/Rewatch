@@ -198,16 +198,16 @@ function renderUpcomingEvents() {
   el.style.display = 'block';
 }
 
+// Both parse via eventDateTs (local midnight) — new Date('YYYY-MM-DD') is UTC
+// midnight, which shifts the shown day back by one in negative-offset timezones
 function formatUpcomingMonth(dateStr) {
-  if (!dateStr) return '';
-  const d = new Date(dateStr);
-  return isNaN(d) ? '' : d.toLocaleString('en-US', { month: 'short' }).toUpperCase();
+  const ts = eventDateTs(dateStr);
+  return isNaN(ts) ? '' : new Date(ts).toLocaleString('en-US', { month: 'short' }).toUpperCase();
 }
 
 function formatUpcomingDay(dateStr) {
-  if (!dateStr) return '';
-  const d = new Date(dateStr);
-  return isNaN(d) ? '' : d.getDate();
+  const ts = eventDateTs(dateStr);
+  return isNaN(ts) ? '' : new Date(ts).getDate();
 }
 
 function renderRecentEventsList() {
