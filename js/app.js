@@ -231,6 +231,15 @@ const ORG_LOGOS = {
   'Bison Kombat':    'bisonkombat.svg',
 };
 
+// Sort comparator for org dropdowns: UFC pinned to the top, everything else
+// alphabetical. Case-insensitive so 'iKON FC' files under I, not after Z.
+function byOrgName(a, b) {
+  if (a === b) return 0;
+  if (a === 'UFC') return -1;
+  if (b === 'UFC') return 1;
+  return a.localeCompare(b, 'en', { sensitivity: 'base' });
+}
+
 function orgBadge(org) {
   if (!org) return '';
   const slug = org.toLowerCase().replace(/[^a-z0-9]/g, '');

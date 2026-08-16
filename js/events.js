@@ -100,14 +100,12 @@ function populateEventsYears() {
   sel.innerHTML = '<option value="">All years</option>' + years.map(y => `<option>${y}</option>`).join('');
   if (cur && years.includes(cur)) sel.value = cur;
 }
-// Populate the org dropdown from the loaded events (UFC first, then by frequency).
+// Populate the org dropdown from the loaded events (UFC first, then alphabetical).
 function populateEventsOrgs(events) {
   const sel = document.getElementById('events-org');
   if (!sel) return;
   const cur = sel.value;
-  const counts = {};
-  events.forEach(e => { if (e.organization) counts[e.organization] = (counts[e.organization] || 0) + 1; });
-  const orgs = Object.keys(counts).sort((a, b) => (a === 'UFC' ? -1 : b === 'UFC' ? 1 : counts[b] - counts[a]));
+  const orgs = [...new Set(events.map(e => e.organization).filter(Boolean))].sort(byOrgName);
   sel.innerHTML = '<option value="">All orgs</option>' + orgs.map(o => `<option value="${escHtml(o)}">${escHtml(o)}</option>`).join('');
   if (cur && orgs.includes(cur)) sel.value = cur;
 }

@@ -21,7 +21,7 @@ async function openCommunityDashboard() {
   renderCommunityDashboard();
 }
 
-// Populate the org dropdown ("All orgs", then UFC, then the rest by event count)
+// Populate the org dropdown ("All orgs", then UFC, then the rest alphabetically)
 // and the year dropdown (most recent first).
 async function loadCommunityFilters() {
   const orgSel = document.getElementById('community-org');
@@ -33,9 +33,9 @@ async function loadCommunityFilters() {
     sb.rpc('event_years')
   ]);
   if (orgs.data) {
-    const rest = orgs.data.map(r => r.organization).filter(o => o && o !== 'UFC');
+    const names = orgs.data.map(r => r.organization).filter(Boolean).sort(byOrgName);
     orgSel.innerHTML = '<option value="">All orgs</option>' +
-      ['UFC', ...rest].map(o => `<option value="${escHtml(o)}">${escHtml(o)}</option>`).join('');
+      names.map(o => `<option value="${escHtml(o)}">${escHtml(o)}</option>`).join('');
   }
   if (yearSel && years.data) {
     yearSel.innerHTML = '<option value="">All years</option>' +

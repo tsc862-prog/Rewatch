@@ -167,10 +167,8 @@ function populateDashOrgs() {
   const sel = document.getElementById('dashboard-org');
   if (!sel) return;
   const cur = sel.value;
-  // distinct orgs in the user's ratings, ordered by frequency (UFC first)
-  const counts = {};
-  myRatings.forEach(f => { if (f.event_organization) counts[f.event_organization] = (counts[f.event_organization] || 0) + 1; });
-  const orgs = Object.keys(counts).sort((a, b) => (a === 'UFC' ? -1 : b === 'UFC' ? 1 : counts[b] - counts[a]));
+  // distinct orgs in the user's ratings, alphabetical (UFC first)
+  const orgs = [...new Set(myRatings.map(f => f.event_organization).filter(Boolean))].sort(byOrgName);
   sel.innerHTML = '<option value="">All orgs</option>' + orgs.map(o => `<option value="${escHtml(o)}">${escHtml(o)}</option>`).join('');
   if (cur && orgs.includes(cur)) sel.value = cur;
 }
