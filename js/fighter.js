@@ -237,6 +237,16 @@ function renderFighterCard() {
         <div class="fstat"><div class="fstat-label">Your Avg Rating</div><div class="fstat-value">${s.avg ? s.avg.toFixed(1) + ' <span class="fstat-star">★</span>' : '—'}</div></div>
       </div>` : '';
 
+  // Pin upcoming bouts in their own section above the history, soonest first,
+  // instead of leaving them inline at the top of the reverse-chron list. Same
+  // date test renderFightRow uses for its Upcoming tag, so the two agree.
+  const todayTs  = new Date().setHours(0, 0, 0, 0);
+  const upcoming = currentFighterFights
+    .filter(f => f.event_date && eventDateTs(f.event_date) > todayTs)
+    .sort((a, b) => eventDateTs(a.event_date) - eventDateTs(b.event_date));
+  const past = currentFighterFights.filter(f => !upcoming.includes(f));
+  const row  = f => renderFightRow(f, { showEvent: true, perspective: currentFighter.name });
+
   el.innerHTML = `
     <div class="card" style="margin-bottom:0">
       <div class="fighter-page-grid">
@@ -246,7 +256,6 @@ function renderFighterCard() {
           <span class="event-title">${escHtml(currentFighter.name)}</span>
           ${renderFighterBio()}
           <div class="event-meta">
-            <span>${currentFighterFights.length} fight${currentFighterFights.length !== 1 ? 's' : ''} in database</span>
             ${fighterCareerBits().map(b => `<span>${escHtml(b)}</span>`).join('')}
             <a class="sherdog-link" href="${sherdogFighterUrl(currentFighter.id)}" target="_blank" rel="noopener noreferrer">Sherdog ↗</a>
           </div>
@@ -255,9 +264,11 @@ function renderFighterCard() {
           ${statsStrip}
         </aside>
         <div class="event-fights">
-          ${currentFighterFights.length
-            ? currentFighterFights.map(f => renderFightRow(f, { showEvent: true, perspective: currentFighter.name })).join('')
-            : '<div class="empty">No fights found for this fighter.</div>'}
+          ${upcoming.length ? `<div class="fights-subhead">Upcoming</div>${upcoming.map(row).join('')}` : ''}
+          ${upcoming.length && past.length ? '<div class="fights-subhead">Fight History</div>' : ''}
+          ${past.length
+            ? past.map(row).join('')
+            : upcoming.length ? '' : '<div class="empty">No fights found for this fighter.</div>'}
         </div>
       </div>
     </div>`;

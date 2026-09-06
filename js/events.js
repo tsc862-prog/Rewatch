@@ -452,9 +452,24 @@ function renderFightRow(fight, opts) {
   const f1rec = getFighterRecord(dF1, fight.event_date);
   const f2rec = getFighterRecord(dF2, fight.event_date);
 
+  // On the fighter card every row would start with the profile fighter's own
+  // name, pushing the opponent — the only informative name — into the
+  // ellipsis. When the perspective matches one side, render "vs Opponent"
+  // instead. A name mismatch (data quirk) falls back to the full matchup.
+  const opp = opts.perspective === fight.fighter1_name
+    ? { name: fight.fighter2_name, id: fight.fighter2_id, rank: fight.fighter2_rank, debut: fight.fighter2_is_debut }
+    : opts.perspective === fight.fighter2_name
+      ? { name: fight.fighter1_name, id: fight.fighter1_id, rank: fight.fighter1_rank, debut: fight.fighter1_is_debut }
+      : null;
+  const oppRec = opp ? getFighterRecord(opp.name, fight.event_date) : null;
+
   const resultHtml = showResult
-    ? `<div class="fight-row-result revealed">
-        ${fight.winner_name ? `<span><strong>W:</strong> ${escHtml(fight.winner_name)}</span>` : '<span>Draw / NC</span>'}
+    ? `<div class="fight-row-result revealed${opp && fight.winner_name ? (fight.winner_name === opts.perspective ? ' result-win' : ' result-loss') : ''}">
+        ${fight.winner_name
+          ? (opp
+              ? (fight.winner_name === opts.perspective ? '<span><strong>Win</strong></span>' : '<span><strong>Loss</strong></span>')
+              : `<span><strong>W:</strong> ${escHtml(fight.winner_name)}</span>`)
+          : '<span>Draw / NC</span>'}
         ${fight.method ? `<span>${escHtml(fight.method)}</span>` : ''}
         ${fight.round ? `<span>R${fight.round}${fight.time ? ' · '+fight.time : ''}</span>` : ''}
         ${fight.details && !fight.details.includes('|') ? `<span class="fight-details">${escHtml(fight.details)}</span>` : ''}
@@ -473,7 +488,9 @@ function renderFightRow(fight, opts) {
   return `
     <div class="fight-row ${isRated ? 'rated' : ''} ${wlClass}" id="fight-row-${fight.id}">
       <div class="fight-row-single">
-        <div class="fight-row-matchup">${dF1rank ? '<span class="rank-tag">#'+escHtml(dF1rank)+'</span> ' : ''}<button class="nav-link" onclick="navToFighter('${dF1id}','${(dF1||'').replace(/'/g,"\\'")}')">${escHtml(dF1)}</button>${dF1debut ? ' <span class="debut-tag">DEBUT</span>' : ''}${f1rec ? ' <span class="fighter-record">('+f1rec+')</span>' : ''} vs ${dF2rank ? '<span class="rank-tag">#'+escHtml(dF2rank)+'</span> ' : ''}<button class="nav-link" onclick="navToFighter('${dF2id}','${(dF2||'').replace(/'/g,"\\'")}')">${escHtml(dF2)}</button>${dF2debut ? ' <span class="debut-tag">DEBUT</span>' : ''}${f2rec ? ' <span class="fighter-record">('+f2rec+')</span>' : ''}</div>
+        <div class="fight-row-matchup">${opp
+          ? `<span class="vs-prefix">vs</span> ${opp.rank ? '<span class="rank-tag">#'+escHtml(opp.rank)+'</span> ' : ''}<button class="nav-link" onclick="navToFighter('${opp.id}','${(opp.name||'').replace(/'/g,"\\'")}')">${escHtml(opp.name)}</button>${opp.debut ? ' <span class="debut-tag">DEBUT</span>' : ''}${oppRec ? ' <span class="fighter-record">('+oppRec+')</span>' : ''}`
+          : `${dF1rank ? '<span class="rank-tag">#'+escHtml(dF1rank)+'</span> ' : ''}<button class="nav-link" onclick="navToFighter('${dF1id}','${(dF1||'').replace(/'/g,"\\'")}')">${escHtml(dF1)}</button>${dF1debut ? ' <span class="debut-tag">DEBUT</span>' : ''}${f1rec ? ' <span class="fighter-record">('+f1rec+')</span>' : ''} vs ${dF2rank ? '<span class="rank-tag">#'+escHtml(dF2rank)+'</span> ' : ''}<button class="nav-link" onclick="navToFighter('${dF2id}','${(dF2||'').replace(/'/g,"\\'")}')">${escHtml(dF2)}</button>${dF2debut ? ' <span class="debut-tag">DEBUT</span>' : ''}${f2rec ? ' <span class="fighter-record">('+f2rec+')</span>' : ''}`}</div>
         ${isFuture
           ? '<span class="upcoming-tag">Upcoming</span>'
           : `<div class="fight-row-stars" id="stars-${fight.id}" onmouseleave="hoverFightStars('${fight.id}',0)">${buildClickableStars(fight.id, currentVal, 17)}</div>

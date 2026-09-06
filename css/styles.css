@@ -152,6 +152,10 @@ tr:hover td{background:#fafaf8}
 .fighter-side .fighter-orgs{margin-top:0}
 .fighter-side .fighter-stats-strip{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:0;width:100%}
 .fighter-side .fstat{min-width:0}
+.fights-subhead{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:0.8px;color:#bbb;margin-bottom:8px}
+.fights-subhead+.fights-subhead,.fight-row+.fights-subhead{margin-top:16px;border-top:1px solid #f0ede8;padding-top:14px}
+body.dark .fights-subhead{color:#666}
+body.dark .fights-subhead+.fights-subhead,body.dark .fight-row+.fights-subhead{border-top-color:#2a2a2a}
 /* Sherdog crops portraits to 200x300, so the box is 2:3. Initials sit behind
    the img — if the photo fails to load, removing the img uncovers them. */
 .fighter-photo{position:relative;flex-shrink:0;width:100%;max-width:236px;aspect-ratio:2/3;border-radius:12px;overflow:hidden;background:#f0ede8;display:flex;align-items:center;justify-content:center}
@@ -321,6 +325,8 @@ body.dark .community-avg .community-count{color:#666}
 .fight-row-result{padding:2px 8px;border-radius:7px;font-size:11px;color:#555;display:flex;gap:10px;flex-wrap:wrap;white-space:nowrap}
 .fight-row-result.revealed{background:#f0faf0}
 .fight-row-result.spoiler{background:#f5f5f4;color:#ccc;font-style:italic}
+.fight-row-result.result-loss{background:#fdf0ef}
+.vs-prefix{color:#999;font-weight:600}
 .fight-details{color:#888;font-style:italic}
 .fighter-record{font-size:11px;font-weight:500;color:#bbb}
 .nav-link{background:none;border:none;padding:0;font:inherit;color:inherit;font-weight:700;cursor:pointer;text-decoration:none;transition:color 0.15s}
@@ -539,6 +545,8 @@ body.dark .fight-row-notes:focus{border-color:#E24B4A;background:#1a1a1a;box-sha
 body.dark .fight-row-result{color:#888}
 body.dark .fight-row-result.revealed{background:#152a0a}
 body.dark .fight-row-result.spoiler{background:#1e1e1e;color:#555}
+body.dark .fight-row-result.result-loss{background:#2a1210}
+body.dark .vs-prefix{color:#777}
 body.dark .fight-details{color:#666}
 body.dark .fighter-record{color:#666}
 
