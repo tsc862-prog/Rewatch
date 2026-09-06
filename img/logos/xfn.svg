@@ -1,6 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 66 24" role="img" aria-label="XFN">
-  <g fill="#5B6AF0">
-    <polygon points="2,3 6,3 14,21 10,21"/><polygon points="10,3 14,3 6,21 2,21"/>
-    <text x="24" y="18" transform="skewX(-8)" textLength="35" lengthAdjust="spacingAndGlyphs" font-family="'Arial Black','Helvetica Neue',Arial,sans-serif" font-size="20" font-weight="900" letter-spacing="-0.5">XFN</text>
-  </g>
-</svg>

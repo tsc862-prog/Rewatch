@@ -9,6 +9,10 @@
 function toggleDarkMode() {
   const isDark = document.body.classList.toggle('dark');
   localStorage.setItem('darkMode', isDark);
+  // Swap org logos to their light-on-dark variants without a re-render
+  document.querySelectorAll('.org-badge.has-logo img[data-file]').forEach(img => {
+    img.src = orgLogoSrc(img.dataset.file);
+  });
 }
 
 // ── Navigation helpers ────────────────────────────────────────────────────────
@@ -181,56 +185,61 @@ async function tryLoadDB() {
 // ── Shared Helpers ────────────────────────────────────────────────────────────
 
 // Map an org name to its logo file in img/logos/. Add an entry here once the file exists.
+// Files are the real marks (Wikipedia/Commons, official sites, or channel art),
+// trimmed to a transparent background so they sit on the white badge chip.
 const ORG_LOGOS = {
   'UFC':             'ufc.png',
   'PFL':             'pfl.png',
   'WEC':             'wec.png',
   'PRIDE':           'pride.png',
-  'Pancrase':        'pancrase.svg',
-  'Shooto':          'shooto.svg',
-  'King of the Cage':'kingofthecage.svg',
-  'EliteXC':         'elitexc.svg',
+  'Pancrase':        'pancrase.png',
+  'Shooto':          'shooto.png',
+  'King of the Cage':'kingofthecage.png',
+  'EliteXC':         'elitexc.png',
   'Bellator':        'bellator.svg',
-  'Cage Warriors':   'cagewarriors.svg',
-  'LFA':             'lfa.svg',
-  'CFFC':            'cffc.svg',
-  'Fury FC':         'furyfc.svg',
-  'Titan FC':        'titanfc.svg',
-  'Invicta FC':      'invictafc.svg',
-  'Strikeforce':     'strikeforce.svg',
-  'WSOF':            'wsof.svg',
-  'RIZIN':           'rizin.svg',
-  'DWCS':            'dwcs.svg',
-  'Road to UFC':     'roadtoufc.svg',
-  'Vale Tudo Japan': 'valetudojapan.svg',
-  'Affliction':      'affliction.svg',
-  'MVP':             'mvp.svg',
-  'XFN':             'xfn.svg',
-  'Eternal MMA':     'eternalmma.svg',
-  'JCK':             'jck.svg',
-  'CES MMA':         'cesmma.svg',
-  'UAE Warriors':    'uaewarriors.svg',
-  'Legacy FC':       'legacyfc.svg',
-  'LUX':             'lux.svg',
-  'UWC':             'uwc.svg',
-  'Ares FC':         'aresfc.svg',
-  'A1 Combat':       'a1combat.svg',
-  'APFC':            'apfc.svg',
-  'iKON FC':         'ikonfc.svg',
-  'ONE Championship':'onechampionship.svg',
-  'Tuff-N-Uff':      'tuffnuff.svg',
-  'Alaska FC':       'alaskafc.svg',
-  'Shooto Brazil':   'shootobrazil.svg',
-  'Brave CF':        'bravecf.svg',
-  'BFL':             'bfl.svg',
-  'Unified MMA':     'unifiedmma.svg',
-  'INKA MMA':        'inkamma.svg',
-  'WXC':             'wxc.svg',
-  'FAC':             'fac.svg',
-  'ZFN':             'zfn.svg',
-  'Bison Kombat':    'bisonkombat.svg',
+  'Cage Warriors':   'cagewarriors.png',
+  'LFA':             'lfa.png',
+  'CFFC':            'cffc.png',
+  'Fury FC':         'furyfc.png',
+  'Titan FC':        'titanfc.png',
+  'Invicta FC':      'invictafc.png',
+  'Strikeforce':     'strikeforce.png',
+  'WSOF':            'wsof.png',
+  'RIZIN':           'rizin.png',
+  'DWCS':            'dwcs.png',
+  'Road to UFC':     'roadtoufc.png',
+  'Vale Tudo Japan': 'valetudojapan.png',
+  'Affliction':      'affliction.png',
+  'MVP':             'mvp.png',
+  'XFN':             'xfn.png',
+  'Eternal MMA':     'eternalmma.png',
+  'JCK':             'jck.png',
+  'CES MMA':         'cesmma.png',
+  'UAE Warriors':    'uaewarriors.png',
+  'Legacy FC':       'legacyfc.png',
+  'LUX':             'lux.png',
+  'UWC':             'uwc.png',
+  'Ares FC':         'aresfc.png',
+  'A1 Combat':       'a1combat.png',
+  'APFC':            'apfc.png',
+  'iKON FC':         'ikonfc.png',
+  'ONE Championship':'onechampionship.png',
+  'Tuff-N-Uff':      'tuffnuff.png',
+  'Alaska FC':       'alaskafc.png',
+  'Shooto Brazil':   'shootobrazil.png',
+  'Brave CF':        'bravecf.png',
+  'BFL':             'bfl.png',
+  'Unified MMA':     'unifiedmma.png',
+  'INKA MMA':        'inkamma.png',
+  'WXC':             'wxc.png',
+  'FAC':             'fac.png',
+  'ZFN':             'zfn.png',
+  'Bison Kombat':    'bisonkombat.png',
+  'Combat FC':       'combatfc.png',
+  'FCC':             'fcc.png',
+  'Fight Club Rush': 'fightclubrush.png',
+  'Shuriken Fight Series': 'shurikenfightseries.png',
 };
-
 // Sort comparator for org dropdowns: UFC pinned to the top, everything else
 // alphabetical. Case-insensitive so 'iKON FC' files under I, not after Z.
 function byOrgName(a, b) {
@@ -240,12 +249,19 @@ function byOrgName(a, b) {
   return a.localeCompare(b, 'en', { sensitivity: 'base' });
 }
 
+// Path for a logo file. Every logo has a dark-mode twin in img/logos/dark/ where
+// the black/grey parts are lightened and brand colours are kept.
+function orgLogoSrc(file) {
+  const dark = document.body.classList.contains('dark');
+  return dark ? `img/logos/dark/${file}` : `img/logos/${file}`;
+}
+
 function orgBadge(org) {
   if (!org) return '';
   const slug = org.toLowerCase().replace(/[^a-z0-9]/g, '');
   const file = ORG_LOGOS[org];
   if (file) {
-    return `<span class="org-badge org-${slug} has-logo" title="${escHtml(org)}"><img src="img/logos/${file}" alt="${escHtml(org)}"></span>`;
+    return `<span class="org-badge org-${slug} has-logo" title="${escHtml(org)}"><img src="${orgLogoSrc(file)}" data-file="${file}" alt="${escHtml(org)}"></span>`;
   }
   return `<span class="org-badge org-${slug}">${escHtml(org)}</span>`;
 }
@@ -274,6 +290,7 @@ function eventWatchPill(evt) {
   if (evt.fightpass_prelims_url) h += `<a class="recent-event-p fightpass" href="${escHtml(evt.fightpass_prelims_url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">▶ Prelims</a>`;
   if (evt.youtube_url) h += `<a class="recent-event-p youtube" href="${escHtml(evt.youtube_url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">▶ Full event</a>`;
   if (evt.netflix_url) h += `<a class="recent-event-p netflix" href="${escHtml(evt.netflix_url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">▶ Full event</a>`;
+  if (evt.pluto_url) h += `<a class="recent-event-p pluto" href="${escHtml(evt.pluto_url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">▶ Full event</a>`;
   return h;
 }
 
@@ -286,11 +303,12 @@ function eventWatchBtn(evt) {
   if (evt.fightpass_prelims_url) h += `<a class="btn btn-fightpass btn-sm" href="${escHtml(evt.fightpass_prelims_url)}" target="_blank" rel="noopener">▶ Prelims on Fight Pass</a>`;
   if (evt.youtube_url) h += `<a class="btn btn-youtube btn-sm" href="${escHtml(evt.youtube_url)}" target="_blank" rel="noopener">▶ Watch on YouTube</a>`;
   if (evt.netflix_url) h += `<a class="btn btn-netflix btn-sm" href="${escHtml(evt.netflix_url)}" target="_blank" rel="noopener">▶ Watch on Netflix</a>`;
+  if (evt.pluto_url) h += `<a class="btn btn-pluto btn-sm" href="${escHtml(evt.pluto_url)}" target="_blank" rel="noopener">▶ Watch on Pluto TV</a>`;
   return h;
 }
 
 function eventHasVideo(evt) {
-  return !!(evt && (evt.paramount_url || evt.espn_url || evt.espn_prelims_url || evt.fightpass_url || evt.fightpass_prelims_url || evt.youtube_url || evt.netflix_url));
+  return !!(evt && (evt.paramount_url || evt.espn_url || evt.espn_prelims_url || evt.fightpass_url || evt.fightpass_prelims_url || evt.youtube_url || evt.netflix_url || evt.pluto_url));
 }
 
 function hl(name, q) {

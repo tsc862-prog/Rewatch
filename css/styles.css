@@ -46,6 +46,7 @@ body.dark select{background:#1e1e1e;border-color:#333;color:#d4d4d4}
 .btn-paramount.espn{background:#CC0000;border-color:#CC0000;color:white}.btn-paramount.espn:hover{background:#a80000;border-color:#a80000}
 .btn-youtube{background:#FF0000;border:1.5px solid #FF0000;color:white;text-decoration:none;display:inline-flex;align-items:center}.btn-youtube:hover{background:#d40000;border-color:#d40000}
 .btn-netflix{background:#E50914;border:1.5px solid #E50914;color:white;text-decoration:none;display:inline-flex;align-items:center}.btn-netflix:hover{background:#b80710;border-color:#b80710}
+.btn-pluto{background:#FFE500;border:1.5px solid #FFE500;color:#111;text-decoration:none;display:inline-flex;align-items:center}.btn-pluto:hover{background:#e6ce00;border-color:#e6ce00}
 .btn-fightpass{background:#1c1c1c;border:1.5px solid #1c1c1c;color:white;text-decoration:none;display:inline-flex;align-items:center}.btn-fightpass:hover{background:#000;border-color:#000}
 .btn-sm{font-size:12px;padding:5px 12px}
 .btn-danger{background:transparent;border:1.5px solid #f0c0c0;color:#A32D2D;padding:3px 9px;border-radius:6px;font-size:11px;cursor:pointer;font-family:inherit}
@@ -59,6 +60,7 @@ body.dark select{background:#1e1e1e;border-color:#333;color:#d4d4d4}
 .watch-icon.espn{background:#CC0000}
 .watch-icon.youtube{background:#FF0000;font-size:10px}
 .watch-icon.netflix{background:#E50914}
+.watch-icon.pluto{background:#FFE500;color:#111}
 .watch-icon.fightpass{background:#1c1c1c}
 
 /* ── Autocomplete ───────────────────────────────────────────────────────────── */
@@ -81,10 +83,10 @@ body.dark select{background:#1e1e1e;border-color:#333;color:#d4d4d4}
 
 /* ── Org Badges ─────────────────────────────────────────────────────────────── */
 .org-badge{display:inline-block;font-size:9px;font-weight:800;padding:2px 6px;border-radius:5px;letter-spacing:0.4px;margin-right:6px;vertical-align:middle;line-height:1.4}
-.org-badge.has-logo{background:white;border:1px solid #e8e6e0;padding:3px 6px;line-height:0;display:inline-flex;align-items:center}
-.org-badge.has-logo img{height:12px;width:auto;display:block}
-.org-badge.org-pfl.has-logo img{height:18px}
-body.dark .org-badge.has-logo{background:#1c1c1c;border-color:#3a3a3a}
+/* Fixed logo tile: every org gets the same footprint, the mark fits inside */
+.org-badge.has-logo{background:white;border:1px solid #e8e6e0;box-sizing:border-box;width:60px;height:30px;padding:1px 2px;margin-right:10px;line-height:0;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0}
+.org-badge.has-logo img{width:100%;height:100%;object-fit:contain;display:block}
+body.dark .org-badge.has-logo{background:#262626;border-color:#3a3a3a}
 .org-ufc{background:#111827;color:#fff}
 .org-pfl{background:#F2682C;color:#fff}
 .org-mvp{background:#C9A227;color:#fff}
@@ -166,8 +168,7 @@ body.dark .fights-subhead+.fights-subhead,body.dark .fight-row+.fights-subhead{b
 .fighter-bio .bio-flag{height:12px;width:auto;border-radius:2px;margin-right:5px;vertical-align:-2px}
 .fighter-bio .bio-label{font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:0.5px;color:#b5b0a8;margin-right:4px}
 .fighter-orgs{display:flex;flex-wrap:wrap;align-items:center;gap:2px;margin-top:8px}
-.fighter-orgs .org-badge.has-logo img{height:14px}
-.fighter-orgs .org-badge.org-pfl.has-logo img{height:20px}
+.fighter-orgs .org-badge.has-logo{width:72px;height:36px;margin-right:4px}
 .sherdog-link{font-size:12px;font-weight:600;color:#E24B4A;text-decoration:none}
 .sherdog-link:hover{text-decoration:underline}
 body.dark .fighter-photo{background:#252525}
@@ -275,6 +276,7 @@ body.dark .spinner{border-color:#3a3a3a;border-top-color:#e05555}
 .recent-event-p.espn{color:#b3261e;background:#fdeeee;border-color:#e0b3b3}
 .recent-event-p.youtube{color:#c4302b;background:#fdeeee;border-color:#e8b3b3}
 .recent-event-p.netflix{color:#b80710;background:#fdeeee;border-color:#e8b3b3}
+.recent-event-p.pluto{color:#7a6a00;background:#fffbe0;border-color:#e8dc8a}
 .recent-event-p.fightpass{color:#1c1c1c;background:#f0efeb;border-color:#cfcdc5}
 .video-dot{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:#eef4fd;color:#1a5fa8;font-size:8px;flex-shrink:0}
 .recent-event-p-count{font-size:11px;color:#1a5fa8;background:#eef4fd;border:1.5px solid #b3c8e8;padding:2px 7px;border-radius:20px}
@@ -507,6 +509,7 @@ body.dark .video-dot{background:#152535;color:#5b9bd5}
 body.dark .recent-event-p.espn{color:#e57373;background:#2a1515;border-color:#5a2a2a}
 body.dark .recent-event-p.youtube{color:#e57373;background:#2a1515;border-color:#5a2a2a}
 body.dark .recent-event-p.netflix{color:#e57373;background:#2a1515;border-color:#5a2a2a}
+body.dark .recent-event-p.pluto{color:#ffe566;background:#2a2610;border-color:#5a5220}
 body.dark .recent-event-p.fightpass{color:#d4d4d4;background:#252525;border-color:#3a3a3a}
 body.dark .btn-fightpass{background:#3a3a3a;border-color:#3a3a3a}
 body.dark .btn-fightpass:hover{background:#4a4a4a;border-color:#4a4a4a}

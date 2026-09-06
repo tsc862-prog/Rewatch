@@ -436,7 +436,7 @@ function renderFightRow(fight, opts) {
   // card (showEvent rows belong to the fighter card, where currentEvent may be
   // a stale leftover from earlier navigation)
   const eventVideo = !opts.showEvent && eventHasVideo(currentEvent);
-  const hasVideo = !!(fight.paramount_url || fight.youtube_url || fight.fightpass_url || eventVideo);
+  const hasVideo = !!(fight.paramount_url || fight.youtube_url || fight.fightpass_url || fight.pluto_url || eventVideo);
   const showResult = !isFuture && (isRated || !hasVideo);
 
   // Randomize display order (deterministic per fight id) to avoid spoiling winner
@@ -499,6 +499,7 @@ function renderFightRow(fight, opts) {
         ${fight.paramount_url ? `<a class="watch-icon paramount" href="${escHtml(fight.paramount_url)}" target="_blank" rel="noopener" title="Watch on Paramount+" aria-label="Watch on Paramount+">P+</a>` : ''}
         ${fight.fightpass_url ? `<a class="watch-icon fightpass" href="${escHtml(fight.fightpass_url)}" target="_blank" rel="noopener" title="Watch on Fight Pass" aria-label="Watch on Fight Pass">FP</a>` : ''}
         ${fight.youtube_url ? `<a class="watch-icon youtube" href="${escHtml(fight.youtube_url)}" target="_blank" rel="noopener" title="Watch on YouTube" aria-label="Watch on YouTube">▶</a>` : ''}
+        ${fight.pluto_url ? `<a class="watch-icon pluto" href="${escHtml(fight.pluto_url)}" target="_blank" rel="noopener" title="Watch on Pluto TV" aria-label="Watch on Pluto TV">PL</a>` : ''}
       </div>
       </div>
       <div class="fight-row-submeta">
