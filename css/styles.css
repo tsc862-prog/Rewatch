@@ -61,6 +61,17 @@ body.dark select{background:#1e1e1e;border-color:#333;color:#d4d4d4}
 .watch-icon.netflix{background:#E50914}
 .watch-icon.pluto{background:#FFE500;color:#111}
 .watch-icon.fightpass{background:#1c1c1c}
+.watch-icon.espn{font-size:9px}
+/* Event replay standing in for a missing per-fight VOD: same slot, outlined in the platform colour so it reads as "the whole card — scrub to the fight" */
+.watch-icon.event-vod{background:transparent;border:1.5px solid currentColor;box-sizing:border-box}
+.watch-icon.event-vod.paramount{color:#0564FF}
+.watch-icon.event-vod.espn{color:#CC0000}
+.watch-icon.event-vod.youtube{color:#FF0000}
+.watch-icon.event-vod.netflix{color:#E50914}
+.watch-icon.event-vod.pluto{color:#a89600}
+.watch-icon.event-vod.fightpass{color:#1c1c1c}
+body.dark .watch-icon.event-vod.fightpass{color:#d4d4d4}
+body.dark .watch-icon.event-vod.pluto{color:#ffe566}
 
 /* ── Autocomplete ───────────────────────────────────────────────────────────── */
 .ac-dropdown{position:absolute;top:100%;left:0;right:0;background:white;border:1.5px solid #e8e6e0;border-radius:12px;z-index:200;max-height:280px;overflow-y:auto;margin-top:4px;box-shadow:0 8px 24px rgba(0,0,0,0.12)}

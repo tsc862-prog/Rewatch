@@ -432,11 +432,12 @@ function renderFightRow(fight, opts) {
   const todayTs = new Date().setHours(0, 0, 0, 0);
   const isFuture = !isNaN(eventTs) && eventTs > todayTs;
 
-  // Event-level video links only count when the row renders inside the event
-  // card (showEvent rows belong to the fighter card, where currentEvent may be
-  // a stale leftover from earlier navigation)
-  const eventVideo = !opts.showEvent && eventHasVideo(currentEvent);
-  const hasVideo = !!(fight.paramount_url || fight.youtube_url || fight.fightpass_url || fight.pluto_url || eventVideo);
+  // The fight's own VOD or, failing that, the event replay carried on the
+  // fight_search row (fightWatchLinks). Either one is watchable, so either one
+  // hides the result until the fight is rated — on the fighter card too, which
+  // used to reveal results for fights that only had a full-event replay.
+  const watchLinks = fightWatchLinks(fight);
+  const hasVideo = watchLinks.length > 0;
   const showResult = !isFuture && (isRated || !hasVideo);
 
   // Display order while the result is hidden. Sherdog lists the winner first,
@@ -501,12 +502,7 @@ function renderFightRow(fight, opts) {
           ? '<span class="upcoming-tag">Upcoming</span>'
           : `<div class="fight-row-stars" id="stars-${fight.id}" onmouseleave="hoverFightStars('${fight.id}',0)">${buildClickableStars(fight.id, currentVal, 17)}</div>
              <div id="result-${fight.id}" class="fight-row-result-wrap">${resultHtml}</div>`}
-        <div class="watch-icons">
-        ${fight.paramount_url ? `<a class="watch-icon paramount" href="${escHtml(fight.paramount_url)}" target="_blank" rel="noopener" title="Watch on Paramount+" aria-label="Watch on Paramount+">P+</a>` : ''}
-        ${fight.fightpass_url ? `<a class="watch-icon fightpass" href="${escHtml(fight.fightpass_url)}" target="_blank" rel="noopener" title="Watch on Fight Pass" aria-label="Watch on Fight Pass">FP</a>` : ''}
-        ${fight.youtube_url ? `<a class="watch-icon youtube" href="${escHtml(fight.youtube_url)}" target="_blank" rel="noopener" title="Watch on YouTube" aria-label="Watch on YouTube">▶</a>` : ''}
-        ${fight.pluto_url ? `<a class="watch-icon pluto" href="${escHtml(fight.pluto_url)}" target="_blank" rel="noopener" title="Watch on Pluto TV" aria-label="Watch on Pluto TV">PL</a>` : ''}
-      </div>
+        <div class="watch-icons">${watchLinks.map(watchIconHtml).join('')}</div>
       </div>
       <div class="fight-row-submeta">
         ${fight.fight_position_type ? '<span class="pos-type-tag pos-'+slugPosType(fight.fight_position_type)+'">'+escHtml(fight.fight_position_type)+'</span>' : ''}

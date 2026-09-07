@@ -289,6 +289,7 @@ function eventWatchPill(evt) {
   if (evt.fightpass_url) h += `<a class="recent-event-p fightpass" href="${escHtml(evt.fightpass_url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">▶ Full event</a>`;
   if (evt.fightpass_prelims_url) h += `<a class="recent-event-p fightpass" href="${escHtml(evt.fightpass_prelims_url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">▶ Prelims</a>`;
   if (evt.youtube_url) h += `<a class="recent-event-p youtube" href="${escHtml(evt.youtube_url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">▶ Full event</a>`;
+  if (evt.youtube_prelims_url) h += `<a class="recent-event-p youtube" href="${escHtml(evt.youtube_prelims_url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">▶ Prelims</a>`;
   if (evt.netflix_url) h += `<a class="recent-event-p netflix" href="${escHtml(evt.netflix_url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">▶ Full event</a>`;
   if (evt.pluto_url) h += `<a class="recent-event-p pluto" href="${escHtml(evt.pluto_url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">▶ Full event</a>`;
   return h;
@@ -302,13 +303,55 @@ function eventWatchBtn(evt) {
   if (evt.fightpass_url) h += `<a class="btn btn-fightpass btn-sm" href="${escHtml(evt.fightpass_url)}" target="_blank" rel="noopener">▶ Watch on Fight Pass</a>`;
   if (evt.fightpass_prelims_url) h += `<a class="btn btn-fightpass btn-sm" href="${escHtml(evt.fightpass_prelims_url)}" target="_blank" rel="noopener">▶ Prelims on Fight Pass</a>`;
   if (evt.youtube_url) h += `<a class="btn btn-youtube btn-sm" href="${escHtml(evt.youtube_url)}" target="_blank" rel="noopener">▶ Watch on YouTube</a>`;
+  if (evt.youtube_prelims_url) h += `<a class="btn btn-youtube btn-sm" href="${escHtml(evt.youtube_prelims_url)}" target="_blank" rel="noopener">▶ Prelims on YouTube</a>`;
   if (evt.netflix_url) h += `<a class="btn btn-netflix btn-sm" href="${escHtml(evt.netflix_url)}" target="_blank" rel="noopener">▶ Watch on Netflix</a>`;
   if (evt.pluto_url) h += `<a class="btn btn-pluto btn-sm" href="${escHtml(evt.pluto_url)}" target="_blank" rel="noopener">▶ Watch on Pluto TV</a>`;
   return h;
 }
 
+// Per-row watch links. If the fight has a VOD of its own on any platform, only
+// those links show — the event replay is a stand-in, not an extra, and the
+// event header already carries it. Only when the fight has no video at all
+// does the row fall back to the event replays carried on the fight_search row
+// (event_<platform>_url), so a fight record is self-contained wherever it
+// renders — event card, fighter card — instead of depending on whichever
+// event happens to be open. A full-card replay beats a prelims replay. A
+// prelims-only link is still surfaced (labelled "Prelims") because the DB
+// can't say which segment a fight sat on: fight_position_type is only ever
+// "Main Event" or null.
+const WATCH_PLATFORMS = [
+  { key: 'paramount', label: 'Paramount+', icon: 'P+' },
+  { key: 'espn',      label: 'ESPN',       icon: 'ESPN' },
+  { key: 'fightpass', label: 'Fight Pass', icon: 'FP' },
+  { key: 'youtube',   label: 'YouTube',    icon: '▶' },
+  { key: 'netflix',   label: 'Netflix',    icon: 'N' },
+  { key: 'pluto',     label: 'Pluto TV',   icon: 'PL' },
+];
+function fightWatchLinks(fight) {
+  if (!fight) return [];
+  const own = WATCH_PLATFORMS.filter(p => fight[p.key + '_url'])
+    .map(p => ({ ...p, url: fight[p.key + '_url'], scope: 'fight' }));
+  if (own.length) return own;
+  const out = [];
+  for (const p of WATCH_PLATFORMS) {
+    const full = fight['event_' + p.key + '_url'];
+    if (full) { out.push({ ...p, url: full, scope: 'event' }); continue; }
+    const prelims = fight['event_' + p.key + '_prelims_url'];
+    if (prelims) out.push({ ...p, url: prelims, scope: 'prelims' });
+  }
+  return out;
+}
+// Compact per-row icon. Event replays standing in for a missing per-fight VOD
+// get the .event-vod outline so they read as "the whole card — scrub to it".
+function watchIconHtml(l) {
+  const title = l.scope === 'fight' ? `Watch on ${l.label}`
+    : l.scope === 'event' ? `Full event on ${l.label}`
+    : `Prelims on ${l.label}`;
+  return `<a class="watch-icon ${l.key}${l.scope === 'fight' ? '' : ' event-vod'}" href="${escHtml(l.url)}" target="_blank" rel="noopener" title="${escHtml(title)}" aria-label="${escHtml(title)}">${l.icon}</a>`;
+}
+
 function eventHasVideo(evt) {
-  return !!(evt && (evt.paramount_url || evt.espn_url || evt.espn_prelims_url || evt.fightpass_url || evt.fightpass_prelims_url || evt.youtube_url || evt.netflix_url || evt.pluto_url));
+  return !!(evt && (evt.paramount_url || evt.espn_url || evt.espn_prelims_url || evt.fightpass_url || evt.fightpass_prelims_url || evt.youtube_url || evt.youtube_prelims_url || evt.netflix_url || evt.pluto_url));
 }
 
 function hl(name, q) {
