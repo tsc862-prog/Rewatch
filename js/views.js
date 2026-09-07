@@ -52,6 +52,7 @@ function showView(v, e) {
   if (v === 'fights') renderTable();
   if (v === 'dashboard') renderDashboard();
   if (v === 'community') openCommunityDashboard();
+  if (v === 'rankings') openRankings();
 }
 
 function methodBadge(m) {

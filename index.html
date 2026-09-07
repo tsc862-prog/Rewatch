@@ -51,6 +51,7 @@
     <nav class="nav">
       <button class="nav-btn active" data-view="log" onclick="showView('log',event)">Event</button>
       <button class="nav-btn" data-view="fighter" onclick="showView('fighter',event)">Fighter</button>
+      <button class="nav-btn" data-view="rankings" onclick="showView('rankings',event)">Rankings</button>
       <button class="nav-btn" data-view="dashboard" onclick="showView('dashboard',event)">Dashboard</button>
       <button class="nav-btn" data-view="community" onclick="showView('community',event)">Community</button>
     </nav>
@@ -127,6 +128,21 @@
       </div>
     </div>
     <div id="fighter-card" style="display:none"></div>
+  </div>
+
+  <!-- RANKINGS VIEW (ufc.com + Sherdog, from the rankings table) -->
+  <div id="view-rankings" class="view">
+    <div class="card">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:6px">
+        <p class="section-head" style="margin:0">Rankings</p>
+        <div class="events-tabs" style="margin-top:0">
+          <button class="events-tab rankings-tab active" data-source="ufc" onclick="switchRankingsSource('ufc')">UFC</button>
+          <button class="events-tab rankings-tab" data-source="sherdog" onclick="switchRankingsSource('sherdog')">Sherdog</button>
+        </div>
+      </div>
+      <p class="rankings-meta" id="rankings-meta"></p>
+      <div class="leaderboard-grid rankings-grid" id="rankings-grid"></div>
+    </div>
   </div>
 
   <!-- FIGHTS VIEW -->
@@ -312,6 +328,7 @@
 <script src="js/seed.js"></script>
 <script src="js/events.js"></script>
 <script src="js/fighter.js"></script>
+<script src="js/rankings.js"></script>
 <script src="js/ratings.js"></script>
 <script src="js/views.js"></script>
 <script src="js/community.js"></script>
