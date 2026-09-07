@@ -439,8 +439,14 @@ function renderFightRow(fight, opts) {
   const hasVideo = !!(fight.paramount_url || fight.youtube_url || fight.fightpass_url || fight.pluto_url || eventVideo);
   const showResult = !isFuture && (isRated || !hasVideo);
 
-  // Randomize display order (deterministic per fight id) to avoid spoiling winner
-  const swapOrder = !showResult && fight.id && (fight.id.charCodeAt(0) + fight.id.charCodeAt(fight.id.length - 1)) % 2 === 1;
+  // Display order while the result is hidden. Sherdog lists the winner first,
+  // so fighter1 can't be trusted as-is. If either fighter carries a rank the
+  // champion / better-ranked one leads (a rank says nothing about the outcome);
+  // otherwise shuffle deterministically per fight id so position leaks nothing.
+  const swapOrder = !showResult && (
+    (fight.fighter1_rank || fight.fighter2_rank)
+      ? rankOrder(fight.fighter2_rank) < rankOrder(fight.fighter1_rank)
+      : !!fight.id && (fight.id.charCodeAt(0) + fight.id.charCodeAt(fight.id.length - 1)) % 2 === 1);
   const dF1 = swapOrder ? fight.fighter2_name : fight.fighter1_name;
   const dF2 = swapOrder ? fight.fighter1_name : fight.fighter2_name;
   const dF1id = swapOrder ? fight.fighter2_id : fight.fighter1_id;
@@ -489,8 +495,8 @@ function renderFightRow(fight, opts) {
     <div class="fight-row ${isRated ? 'rated' : ''} ${wlClass}" id="fight-row-${fight.id}">
       <div class="fight-row-single">
         <div class="fight-row-matchup">${opp
-          ? `<span class="vs-prefix">vs</span> ${opp.rank ? '<span class="rank-tag">#'+escHtml(opp.rank)+'</span> ' : ''}<button class="nav-link" onclick="navToFighter('${opp.id}','${(opp.name||'').replace(/'/g,"\\'")}')">${escHtml(opp.name)}</button>${opp.debut ? ' <span class="debut-tag">DEBUT</span>' : ''}${oppRec ? ' <span class="fighter-record">('+oppRec+')</span>' : ''}`
-          : `${dF1rank ? '<span class="rank-tag">#'+escHtml(dF1rank)+'</span> ' : ''}<button class="nav-link" onclick="navToFighter('${dF1id}','${(dF1||'').replace(/'/g,"\\'")}')">${escHtml(dF1)}</button>${dF1debut ? ' <span class="debut-tag">DEBUT</span>' : ''}${f1rec ? ' <span class="fighter-record">('+f1rec+')</span>' : ''} vs ${dF2rank ? '<span class="rank-tag">#'+escHtml(dF2rank)+'</span> ' : ''}<button class="nav-link" onclick="navToFighter('${dF2id}','${(dF2||'').replace(/'/g,"\\'")}')">${escHtml(dF2)}</button>${dF2debut ? ' <span class="debut-tag">DEBUT</span>' : ''}${f2rec ? ' <span class="fighter-record">('+f2rec+')</span>' : ''}`}</div>
+          ? `<span class="vs-prefix">vs</span> ${rankTag(opp.rank)}<button class="nav-link" onclick="navToFighter('${opp.id}','${(opp.name||'').replace(/'/g,"\\'")}')">${escHtml(opp.name)}</button>${opp.debut ? ' <span class="debut-tag">DEBUT</span>' : ''}${oppRec ? ' <span class="fighter-record">('+oppRec+')</span>' : ''}`
+          : `${rankTag(dF1rank)}<button class="nav-link" onclick="navToFighter('${dF1id}','${(dF1||'').replace(/'/g,"\\'")}')">${escHtml(dF1)}</button>${dF1debut ? ' <span class="debut-tag">DEBUT</span>' : ''}${f1rec ? ' <span class="fighter-record">('+f1rec+')</span>' : ''} vs ${rankTag(dF2rank)}<button class="nav-link" onclick="navToFighter('${dF2id}','${(dF2||'').replace(/'/g,"\\'")}')">${escHtml(dF2)}</button>${dF2debut ? ' <span class="debut-tag">DEBUT</span>' : ''}${f2rec ? ' <span class="fighter-record">('+f2rec+')</span>' : ''}`}</div>
         ${isFuture
           ? '<span class="upcoming-tag">Upcoming</span>'
           : `<div class="fight-row-stars" id="stars-${fight.id}" onmouseleave="hoverFightStars('${fight.id}',0)">${buildClickableStars(fight.id, currentVal, 17)}</div>

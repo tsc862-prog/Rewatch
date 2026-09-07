@@ -1,11 +1,16 @@
 // ── Rankings ──────────────────────────────────────────────────────────────────
 // Divisional + pound-for-pound rankings from the `rankings` table, which
-// rankings_scraper.py refreshes nightly from ufc.com and Sherdog. One source is
-// shown at a time (tab); each division is a card, champion on top.
+// rankings_scraper.py refreshes nightly from ufc.com and Sherdog. The table is a
+// history of dated snapshots (a new one is stored whenever a source's lists
+// change), so the tab shows the latest by default and an "as of" picker opens
+// any earlier snapshot. One source at a time; each division is a card,
+// champion on top.
 
-let rankingsRows = null;      // every row from the table, all sources — loaded once
+let rankingsSnapshots = null;   // rows of the rankings_snapshots view, newest first
+const rankingsCache = {};       // `${source}|${snapshot_date}` -> rows
 let rankingsSource = 'ufc';
-let rankingsLoading = false;
+let rankingsDate = null;        // null = latest snapshot for the source
+let rankingsRenderSeq = 0;      // guards against a slow load painting over a newer selection
 
 const RANKINGS_SOURCES = {
   ufc:     { label: 'UFC',     url: 'https://www.ufc.com/rankings',
@@ -23,26 +28,44 @@ const RANKINGS_DIVISION_ORDER = [
 ];
 
 async function openRankings() {
-  if (!rankingsRows && !rankingsLoading) await loadRankings();
-  renderRankings();
+  if (!rankingsSnapshots) await loadRankingsSnapshots();
+  return renderRankings();
 }
 
-async function loadRankings() {
-  rankingsLoading = true;
-  const grid = document.getElementById('rankings-grid');
-  if (grid) grid.innerHTML = '<div class="dash-loading"><span class="spinner"></span> Loading rankings…</div>';
+async function loadRankingsSnapshots() {
+  const { data, error } = await sb.from('rankings_snapshots')
+    .select('*')
+    .order('snapshot_date', { ascending: false });
+  rankingsSnapshots = error ? [] : (data || []);
+}
+
+function rankingsDatesFor(src) {
+  return (rankingsSnapshots || []).filter(s => s.source === src).map(s => s.snapshot_date);
+}
+
+async function loadRankingsRows(src, date) {
+  const key = `${src}|${date}`;
+  if (rankingsCache[key]) return rankingsCache[key];
   // fighters(image_url) rides along via the fighter_id FK for the avatars
   const { data, error } = await sb.from('rankings')
     .select('*, fighters(image_url)')
+    .eq('source', src)
+    .eq('snapshot_date', date)
     .order('division')
     .order('rank');
-  rankingsRows = error ? [] : (data || []);
-  rankingsLoading = false;
+  rankingsCache[key] = error ? [] : (data || []);
+  return rankingsCache[key];
 }
 
 function switchRankingsSource(src) {
   rankingsSource = src;
-  renderRankings();
+  rankingsDate = null;          // back to the latest when changing source
+  return renderRankings();
+}
+
+function switchRankingsDate(date) {
+  rankingsDate = date || null;
+  return renderRankings();
 }
 
 function rankingsChange(r) {
@@ -81,22 +104,46 @@ function rankingsMeta(r) {
   return bits.length ? `<span class="rk-meta">${escHtml(bits.join(' · '))}</span>` : '';
 }
 
-function renderRankings() {
+function renderRankingsDatePicker(dates, selected) {
+  const sel = document.getElementById('rankings-date');
+  if (!sel) return;
+  sel.innerHTML = dates.map((d, i) =>
+    `<option value="${escHtml(d)}"${d === selected ? ' selected' : ''}>${escHtml(formatEventDate(d))}${i === 0 ? ' (latest)' : ''}</option>`
+  ).join('');
+  sel.style.display = dates.length > 1 ? '' : 'none';
+}
+
+async function renderRankings() {
   const grid = document.getElementById('rankings-grid');
   const meta = document.getElementById('rankings-meta');
-  if (!grid || rankingsLoading) return;
+  if (!grid) return;
+  const seq = ++rankingsRenderSeq;
   document.querySelectorAll('.rankings-tab').forEach(b => b.classList.toggle('active', b.dataset.source === rankingsSource));
 
-  const src  = RANKINGS_SOURCES[rankingsSource] || { label: rankingsSource, url: '#', note: '' };
-  const rows = (rankingsRows || []).filter(r => r.source === rankingsSource);
-  if (!rows.length) {
+  const src   = RANKINGS_SOURCES[rankingsSource] || { label: rankingsSource, url: '#', note: '' };
+  const dates = rankingsDatesFor(rankingsSource);
+  const date  = rankingsDate && dates.includes(rankingsDate) ? rankingsDate : dates[0];
+  renderRankingsDatePicker(dates, date);
+  if (!date) {
     meta.innerHTML = '';
     grid.innerHTML = `<div class="empty">No ${escHtml(src.label)} rankings loaded yet — the nightly scraper fills these in.</div>`;
     return;
   }
-  const updated = rows.reduce((m, r) => (r.scraped_at > m ? r.scraped_at : m), '');
-  meta.innerHTML = `${escHtml(src.note)} Updated ${escHtml(formatEventDate(updated))} · `
-    + `<a href="${escHtml(src.url)}" target="_blank" rel="noopener noreferrer">${escHtml(src.label)} ↗</a>`;
+
+  if (!rankingsCache[`${rankingsSource}|${date}`]) {
+    grid.innerHTML = '<div class="dash-loading"><span class="spinner"></span> Loading rankings…</div>';
+  }
+  const rows = await loadRankingsRows(rankingsSource, date);
+  if (seq !== rankingsRenderSeq) return;    // the user moved on while this loaded
+
+  const isLatest = date === dates[0];
+  meta.innerHTML = `${escHtml(src.note)} `
+    + (isLatest
+        ? `As of ${escHtml(formatEventDate(date))}`
+        : `<span class="rk-historic">Showing the rankings as published on ${escHtml(formatEventDate(date))}</span>`
+          + ` · <a href="#" onclick="switchRankingsDate(null);return false;">Back to latest</a>`)
+    + (dates.length > 1 ? ` · ${dates.length} snapshots stored` : '')
+    + ` · <a href="${escHtml(src.url)}" target="_blank" rel="noopener noreferrer">${escHtml(src.label)} ↗</a>`;
 
   const byDiv = new Map();
   rows.forEach(r => { if (!byDiv.has(r.division)) byDiv.set(r.division, []); byDiv.get(r.division).push(r); });

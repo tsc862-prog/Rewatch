@@ -135,9 +135,13 @@
     <div class="card">
       <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:6px">
         <p class="section-head" style="margin:0">Rankings</p>
-        <div class="events-tabs" style="margin-top:0">
-          <button class="events-tab rankings-tab active" data-source="ufc" onclick="switchRankingsSource('ufc')">UFC</button>
-          <button class="events-tab rankings-tab" data-source="sherdog" onclick="switchRankingsSource('sherdog')">Sherdog</button>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          <!-- "As of" picker: one option per stored snapshot; hidden while there's only one -->
+          <select id="rankings-date" class="rankings-date" onchange="switchRankingsDate(this.value)" title="Show the rankings as of an earlier snapshot" style="display:none"></select>
+          <div class="events-tabs" style="margin-top:0">
+            <button class="events-tab rankings-tab active" data-source="ufc" onclick="switchRankingsSource('ufc')">UFC</button>
+            <button class="events-tab rankings-tab" data-source="sherdog" onclick="switchRankingsSource('sherdog')">Sherdog</button>
+          </div>
         </div>
       </div>
       <p class="rankings-meta" id="rankings-meta"></p>

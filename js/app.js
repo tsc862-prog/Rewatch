@@ -343,6 +343,27 @@ function groupMethodCounts(labels, counts, top) {
   return { labels: head.map(p => p[0]).concat('Other'), counts: head.map(p => p[1]).concat(other) };
 }
 
+// The UFC rank a fighter carried into a bout (fights.fighter1_rank/2_rank,
+// stamped nightly by rankings_scraper.py for upcoming fights, frozen once the
+// fight is in the past). Rendered college-football style: a small raised
+// number ahead of the name, no '#'; 'C' for the champion.
+function rankTag(rank) {
+  if (!rank) return '';
+  const r = String(rank).trim();
+  return r.toUpperCase() === 'C'
+    ? '<span class="rank-tag rank-champ" title="Champion">C</span> '
+    : `<span class="rank-tag" title="Ranked #${escHtml(r)}">${escHtml(r)}</span> `;
+}
+
+// Sort key for a stored rank: champion first, then #1..#15, unranked last.
+function rankOrder(rank) {
+  if (!rank) return Infinity;
+  const r = String(rank).trim().toUpperCase();
+  if (r === 'C') return 0;
+  const n = parseInt(r, 10);
+  return isNaN(n) ? Infinity : n;
+}
+
 function slugPosType(t) { return (t||'').toLowerCase().replace(/\s+/g,'-'); }
 
 function escHtml(s) {
