@@ -19,3 +19,5 @@ Run `node tests/rating-saves.cjs` for delayed-save, overlapping-note, retry, and
 ## Database deployment order
 
 Apply the unique-per-user migration before deploying this frontend. The old single-fight constraint must be removed, and `(user_id, fight_id)` must be unique for the upsert conflict target. The live migration added `ratings_user_id_fight_id_key`, set `user_id NOT NULL`, and dropped `ratings_fight_id_key`. Database verification used temporary ratings in a rolled-back transaction to verify two users rating one fight and RLS read/update isolation.
+
+Header padding is container-relative (24px on desktop), so ultrawide viewports do not squeeze the logo, navigation, or account controls.

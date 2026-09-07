@@ -1,11 +1,11 @@
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;background:#eceae6;color:#1c1c1a;min-height:100vh;text-rendering:optimizeLegibility;-webkit-font-smoothing:antialiased}
 .shell{max-width:1320px;margin:0 auto;padding:1.25rem 1.5rem}
-.shell>header{margin-left:-1.5rem;margin-right:-1.5rem;margin-top:-1.25rem;padding:16px max(1.5rem,calc(50vw - 660px));border-radius:0}
+.shell>header{margin-left:-1.5rem;margin-right:-1.5rem;margin-top:-1.25rem;padding:16px 24px;gap:16px;border-radius:0}
 
 /* ── Header ─────────────────────────────────────────────────────────────────── */
 header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;background:#111827;border-radius:16px;padding:12px 18px}
-.logo{display:flex;align-items:center;gap:10px}
+.logo{display:flex;align-items:center;gap:10px;flex-shrink:0}
 .logo-icon{width:34px;height:34px;background:#E24B4A;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(226,75,74,0.45);clip-path:polygon(30% 0%,70% 0%,100% 30%,100% 70%,70% 100%,30% 100%,0% 70%,0% 30%)}
 .logo-icon svg{width:18px;height:18px;fill:white}
 .logo-text{font-size:17px;font-weight:700;color:white;letter-spacing:-0.3px}
@@ -359,7 +359,7 @@ body.dark .auth-close:hover{color:#aaa;background:#252525}
 .auth-error{font-size:12px;color:#A32D2D;background:#FCEBEB;padding:8px 12px;border-radius:8px;margin-bottom:12px}
 
 /* ── Header Right ──────────────────────────────────────────────────────────── */
-.header-right{display:flex;align-items:center;gap:8px}
+.header-right{display:flex;align-items:center;gap:8px;flex-shrink:0}
 .user-email{font-size:12px;color:rgba(255,255,255,0.6);font-weight:500;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .logout-btn{background:transparent;border:1.5px solid rgba(255,255,255,0.2);border-radius:8px;padding:5px 12px;cursor:pointer;color:rgba(255,255,255,0.7);font-size:13px;font-weight:500;font-family:inherit;transition:all 0.15s;flex-shrink:0}
 .logout-btn:hover{background:rgba(255,255,255,0.1);color:white;border-color:rgba(255,255,255,0.35)}
@@ -641,3 +641,6 @@ body.dark .rk-champ-lbl{color:#f0c040}
   .fight-row-wc{white-space:normal}
   .user-email{max-width:110px;overflow:hidden;text-overflow:ellipsis}
 }
+
+
+@media(max-width:700px){header .logo{flex:1 0 180px}.header-right{max-width:100%;flex-wrap:wrap}}
