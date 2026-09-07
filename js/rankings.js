@@ -150,16 +150,21 @@ async function renderRankings() {
   const order = d => { const i = RANKINGS_DIVISION_ORDER.indexOf(d); return i === -1 ? 999 : i; };
   const divisions = [...byDiv.keys()].sort((a, b) => order(a) - order(b) || a.localeCompare(b));
 
+  // One portrait per card: the champion, or the #1 on lists without a champion
+  // slot (Sherdog, P4P). Everyone else is a plain text row.
   grid.innerHTML = divisions.map(d => {
     const list   = byDiv.get(d).sort((a, b) => a.rank - b.rank);
     const champ  = list.find(r => r.rank === 0);
-    const ranked = list.filter(r => r.rank > 0);
+    const top    = champ || list[0];
+    const rest   = list.filter(r => r !== top);
+    const label  = champ ? 'Champion' : `#${top.rank}`;
     return `<div class="leaderboard-col rk-col">
       <div class="leaderboard-title">${escHtml(d)}</div>
-      ${champ ? `<div class="rk-champ">${rankingsAvatar(champ)}
-        <div class="rk-champ-body"><span class="rk-champ-lbl">Champion</span>${rankingsName(champ)}</div></div>` : ''}
-      ${ranked.map(r => `<div class="rk-row">
-        <span class="rk-rank">${r.rank}</span>${rankingsAvatar(r)}
+      <div class="rk-top${champ ? ' rk-champ' : ''}">${rankingsAvatar(top)}
+        <div class="rk-top-body"><span class="rk-top-lbl">${label}</span>${rankingsName(top)}${rankingsMeta(top)}</div>${champ ? '' : rankingsChange(top)}
+      </div>
+      ${rest.map(r => `<div class="rk-row">
+        <span class="rk-rank">${r.rank}</span>
         <span class="rk-body">${rankingsName(r)}${rankingsMeta(r)}</span>${rankingsChange(r)}
       </div>`).join('')}
     </div>`;
