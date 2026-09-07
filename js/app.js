@@ -318,7 +318,8 @@ function eventWatchBtn(evt) {
 // event happens to be open. A full-card replay beats a prelims replay. A
 // prelims-only link is still surfaced (labelled "Prelims") because the DB
 // can't say which segment a fight sat on: fight_position_type is only ever
-// "Main Event" or null.
+// "Main Event" or null — except for the main event itself, which is never on
+// the prelims, so that row skips prelims links.
 const WATCH_PLATFORMS = [
   { key: 'paramount', label: 'Paramount+', icon: 'P+' },
   { key: 'espn',      label: 'ESPN',       icon: 'ESPN' },
@@ -332,10 +333,12 @@ function fightWatchLinks(fight) {
   const own = WATCH_PLATFORMS.filter(p => fight[p.key + '_url'])
     .map(p => ({ ...p, url: fight[p.key + '_url'], scope: 'fight' }));
   if (own.length) return own;
+  const isMainEvent = !!fight.is_main || fight.fight_position_type === 'Main Event' || fight.fight_position === 1;
   const out = [];
   for (const p of WATCH_PLATFORMS) {
     const full = fight['event_' + p.key + '_url'];
     if (full) { out.push({ ...p, url: full, scope: 'event' }); continue; }
+    if (isMainEvent) continue;
     const prelims = fight['event_' + p.key + '_prelims_url'];
     if (prelims) out.push({ ...p, url: prelims, scope: 'prelims' });
   }
