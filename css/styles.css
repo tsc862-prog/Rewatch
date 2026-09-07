@@ -1,7 +1,7 @@
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;background:#eceae6;color:#1c1c1a;min-height:100vh;text-rendering:optimizeLegibility;-webkit-font-smoothing:antialiased}
 .shell{max-width:1320px;margin:0 auto;padding:1.25rem 1.5rem}
-.shell>header{margin-left:calc(50% - 50vw - 1.5rem);margin-right:calc(50% - 50vw - 1.5rem);margin-top:-1.25rem;padding:16px max(1.5rem,calc(50vw - 660px));border-radius:0}
+.shell>header{margin-left:-1.5rem;margin-right:-1.5rem;margin-top:-1.25rem;padding:16px max(1.5rem,calc(50vw - 660px));border-radius:0}
 
 /* ── Header ─────────────────────────────────────────────────────────────────── */
 header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;background:#111827;border-radius:16px;padding:12px 18px}
@@ -618,3 +618,26 @@ body.dark .rk-change.same{color:#444}
 body.dark .rk-change.new{background:#1a1a4a;color:#8080f0}
 body.dark .rk-champ{background:linear-gradient(135deg,#2a2410,#3a2a00);border-color:#4a3a10}
 body.dark .rk-champ-lbl{color:#f0c040}
+
+/* Keep navigation and complete matchups visible on narrow screens. */
+@media(max-width:1000px){
+  .shell>header{flex-wrap:wrap;gap:12px;padding:12px 24px}
+  header .nav{order:3;flex:1 0 100%;justify-content:center;flex-wrap:wrap}
+  header .logo{min-width:0;flex:1}
+  header .logo-icon{flex-shrink:0}
+  .fight-row-matchup{flex:1 0 100%;white-space:normal;overflow:visible;overflow-wrap:anywhere}
+  .fight-row-result-wrap{flex-shrink:1;min-width:0}
+  .fight-row-result{white-space:normal}
+}
+@media(max-width:700px){
+  .shell{padding:1rem .75rem}
+  .shell>header{margin:-1rem -.75rem 1rem;padding:12px}
+  .logo-text{font-size:15px}
+  .nav-btn{flex:1 0 auto;padding:9px 8px}
+  .card{padding:12px}
+  .fight-row-single{gap:8px}
+  .fight-row-matchup{font-size:14px;line-height:1.5}
+  .fight-row-submeta{overflow-wrap:anywhere}
+  .fight-row-wc{white-space:normal}
+  .user-email{max-width:110px;overflow:hidden;text-overflow:ellipsis}
+}

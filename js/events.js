@@ -266,7 +266,7 @@ let eventSearchTimer = null;
 let currentEvent = null;
 let currentEventFights = [];
 let eventFightRatings = new Map(); // fightId → { rating }
-let savingFights = new Set(); // prevent double-saves
+const ratingSaveQueues = new Map(); // one serialized queue per user and fight
 
 // ── Event Search (inline results) ────────────────────────────────────────────
 
@@ -609,95 +609,83 @@ function expandNoteShorthands(text, fightId) {
 
 // ── Auto-Save ────────────────────────────────────────────────────────────────
 
-async function saveFightRating(fightId) {
+function saveFightRating(fightId) {
   const state = eventFightRatings.get(fightId);
-  if (!state || !state.rating) return;
-  if (savingFights.has(fightId)) return; // prevent double-save
-  savingFights.add(fightId);
-
-  const notesEl = document.getElementById('notes-' + fightId);
-  const notesRaw = notesEl ? notesEl.value.trim() : '';
-  const notesVal = expandNoteShorthands(notesRaw, fightId);
-  if (notesEl && notesVal !== notesRaw) notesEl.value = notesVal;
-
-  const entry = {
-    fight_id:  fightId,
-    user_id:   currentUser.id,
-    rating:    state.rating,
-    notes:     notesVal || null,
-    logged_at: Date.now()
-  };
-
-  const existing = myRatings.find(x => x.fight_id === fightId);
-  let error;
-  if (existing) {
-    ({ error } = await sb.from('ratings').update(entry).eq('fight_id', fightId));
-  } else {
-    ({ error } = await sb.from('ratings').insert(entry));
-  }
-
-  savingFights.delete(fightId);
-
-  if (error) { showToast('Error: ' + error.message); return; }
-
-  // Update local cache — resolve the fight from the card the rated row lives in
-  // (the same fight can exist in both lists when the event and fighter overlap)
-  const row = document.getElementById('fight-row-' + fightId);
-  const inFighterCard = !!(row && row.closest('#fighter-card'));
-  const fight = inFighterCard
-    ? currentFighterFights.find(f => f.id === fightId)
-    : currentEventFights.find(f => f.id === fightId) || currentFighterFights.find(f => f.id === fightId);
-  const fullEntry = { ...fight, ...entry };
-  const idx = myRatings.findIndex(x => x.fight_id === fightId);
-  if (idx >= 0) myRatings[idx] = fullEntry; else myRatings.unshift(fullEntry);
-
-  // Re-render just this fight row to reveal result
-  if (row) row.outerHTML = renderFightRow(fight, inFighterCard
-    ? { showEvent: true, perspective: currentFighter && currentFighter.name }
-    : {});
-
-  updateFighterProgress();
-  updateEventProgress();
-  showToast(existing ? 'Rating updated' : 'Fight rated!');
-  loadFightAggregates();
+  if (!currentUser || !state?.rating) return Promise.resolve();
+  return queueRatingSave(fightId, { rating: state.rating, logged_at: Date.now() });
 }
 
-// Save notes on blur — delayed slightly so star clicks register first
-async function saveNotes(fightId) {
-  await new Promise(r => setTimeout(r, 150));
-  if (savingFights.has(fightId)) return;
+function saveNotes(fightId) {
+  if (!currentUser) return Promise.resolve();
+  return queueRatingSave(fightId, {});
+}
 
+// Capture edits before awaiting a request or replacing any row markup.
+function queueRatingSave(fightId, patch) {
+  const userId = currentUser.id;
+  const key = userId + ':' + fightId;
   const notesEl = document.getElementById('notes-' + fightId);
-  const notesRaw = notesEl ? notesEl.value.trim() : '';
-  const notesVal = expandNoteShorthands(notesRaw, fightId);
-  if (notesEl && notesVal !== notesRaw) notesEl.value = notesVal;
-  if (!notesVal && !myRatings.find(x => x.fight_id === fightId)) return;
-
-  const existing = myRatings.find(x => x.fight_id === fightId);
-  if (existing && (existing.notes || '') === notesVal) return;
-  if (!existing && !currentUser) return;
-
-  // Lock this fight so a concurrent saveNotes/saveFightRating can't double-insert (→ 409 on UNIQUE(fight_id))
-  savingFights.add(fightId);
-  let error;
-  if (existing) {
-    ({ error } = await sb.from('ratings').update({ notes: notesVal || null }).eq('fight_id', fightId));
-    if (!error) existing.notes = notesVal || null;
-  } else {
-    const fight = currentEventFights.find(f => f.id === fightId) || currentFighterFights.find(f => f.id === fightId);
-    const entry = { fight_id: fightId, user_id: currentUser.id, rating: null, notes: notesVal, logged_at: Date.now() };
-    ({ error } = await sb.from('ratings').insert(entry));
-    if (error && error.code === '23505') {
-      // A rating row for this fight already exists (stale cache / another tab) — update its notes
-      // instead of inserting a duplicate, preserving any existing rating.
-      ({ error } = await sb.from('ratings').update({ notes: notesVal || null }).eq('fight_id', fightId));
-      if (!error) myRatings.unshift({ ...fight, ...entry, notes: notesVal || null });
-    } else if (!error) {
-      myRatings.unshift({ ...fight, ...entry });
-    }
+  if (notesEl) {
+    const notes = expandNoteShorthands(notesEl.value.trim(), fightId);
+    notesEl.value = notes;
+    patch = { ...patch, notes: notes || null };
   }
-  savingFights.delete(fightId);
+  let queue = ratingSaveQueues.get(key);
+  if (!queue) {
+    queue = { pending: null, running: null };
+    ratingSaveQueues.set(key, queue);
+  }
+  queue.pending = { ...queue.pending, ...patch };
+  if (!queue.running) {
+    // Defer starting until running is assigned, including immediate failures.
+    queue.running = Promise.resolve().then(() => drainRatingSaves(key, queue, fightId, userId));
+  }
+  return queue.running;
+}
 
-  if (error) { showToast('Error saving notes: ' + error.message); return; }
-  showToast('Notes saved');
+async function drainRatingSaves(key, queue, fightId, userId) {
+  try {
+    while (queue.pending) {
+      if (currentUser?.id !== userId) { queue.pending = null; break; }
+      const patch = queue.pending;
+      queue.pending = null;
+      try {
+        const { data, error } = await sb.from('ratings').upsert(
+          { fight_id: fightId, user_id: userId, ...patch },
+          { onConflict: 'user_id,fight_id' }
+        ).select().single();
+        if (error) throw error;
+        if (currentUser?.id !== userId) { queue.pending = null; break; }
+        const fight = currentEventFights.find(f => f.id === fightId)
+          || currentFighterFights.find(f => f.id === fightId);
+        const idx = myRatings.findIndex(r => r.fight_id === fightId);
+        const saved = { ...(idx >= 0 ? myRatings[idx] : fight), ...data };
+        if (idx >= 0) myRatings[idx] = saved; else myRatings.unshift(saved);
+        if (!queue.pending) {
+          const row = document.getElementById('fight-row-' + fightId);
+          const notes = document.getElementById('notes-' + fightId);
+          // Do not destroy a note draft typed while this request was running.
+          const editing = notes && (document.activeElement === notes
+            || expandNoteShorthands(notes.value.trim(), fightId) !== (data.notes || ''));
+          if (row && fight && !editing) {
+            const inFighterCard = !!row.closest('#fighter-card');
+            row.outerHTML = renderFightRow(fight, inFighterCard
+              ? { showEvent: true, perspective: currentFighter?.name } : {});
+          }
+          updateFighterProgress();
+          updateEventProgress();
+          showToast('Saved');
+          loadFightAggregates();
+        }
+      } catch (error) {
+        // Retain the failed patch; a subsequent edit retries it with latest values.
+        queue.pending = { ...patch, ...queue.pending };
+        showToast('Save failed. Change the rating or notes to retry: ' + error.message);
+        break;
+      }
+    }
+  } finally {
+    queue.running = null;
+    if (!queue.pending) ratingSaveQueues.delete(key);
+  }
 }
