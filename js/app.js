@@ -34,9 +34,10 @@ function navToFighter(id, name) {
 
 async function navToEvent(eventId) {
   navReturnContext = currentFighter ? { type: 'fighter', data: currentFighter } : null;
-  const { data } = await sb.from('events').select('*').eq('id', eventId).single();
-  if (!data) return;
   activateView('view-log');
+  showCardLoading('event-card', 'event-search-card', 'Loading event…');
+  const { data } = await sb.from('events').select('*').eq('id', eventId).single();
+  if (!data) { restoreCardSearch('event-card', 'event-search-card'); showToast('Event not found'); return; }
   selectEvent(data);
 }
 
@@ -435,6 +436,29 @@ function buildStars(rating, size) {
     else h += starSVG('empty', size);
   }
   return h;
+}
+
+// ── Loading states ────────────────────────────────────────────────────────────
+// One spinner markup for every screen that waits on the DB (the dashboard and
+// community tabs use the same .dash-loading block inline in index.html).
+function loadingHtml(msg) {
+  return `<div class="dash-loading"><span class="spinner"></span> ${escHtml(msg || 'Loading…')}</div>`;
+}
+// Swap a search card for its detail card showing a spinner, so the click
+// registers immediately instead of the page sitting still until the fights
+// arrive. The real render replaces the spinner; restoreCardSearch undoes it
+// when the load fails.
+function showCardLoading(cardId, searchCardId, msg) {
+  const card = document.getElementById(cardId);
+  const search = document.getElementById(searchCardId);
+  if (card) { card.innerHTML = `<div class="card" style="margin-bottom:0">${loadingHtml(msg)}</div>`; card.style.display = 'block'; }
+  if (search) search.style.display = 'none';
+}
+function restoreCardSearch(cardId, searchCardId) {
+  const card = document.getElementById(cardId);
+  const search = document.getElementById(searchCardId);
+  if (card) { card.innerHTML = ''; card.style.display = 'none'; }
+  if (search) search.style.display = 'block';
 }
 
 // ── Toast ─────────────────────────────────────────────────────────────────────

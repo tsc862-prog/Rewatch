@@ -93,6 +93,13 @@ function renderTable() {
 
   const tbody = document.getElementById('fight-tbody');
   const empty = document.getElementById('table-empty');
+  // Ratings still loading — a spinner, not a premature "no fights rated yet"
+  if (!appDataReady && currentUser) {
+    tbody.innerHTML = '';
+    empty.innerHTML = loadingHtml('Loading your ratings…');
+    empty.style.display = 'block';
+    return;
+  }
   if (!filtered.length) {
     tbody.innerHTML = '';
     empty.textContent = currentUser
@@ -215,6 +222,7 @@ function relativeTime(iso) {
 async function renderActivityFeed() {
   const el = document.getElementById('activity-feed');
   if (!el) return;
+  el.innerHTML = loadingHtml('Loading activity…');
 
   const { data: logs, error } = await sb
     .from('change_log')

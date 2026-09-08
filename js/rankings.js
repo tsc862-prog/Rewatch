@@ -28,7 +28,11 @@ const RANKINGS_DIVISION_ORDER = [
 ];
 
 async function openRankings() {
-  if (!rankingsSnapshots) await loadRankingsSnapshots();
+  if (!rankingsSnapshots) {
+    const grid = document.getElementById('rankings-grid');
+    if (grid) grid.innerHTML = loadingHtml('Loading rankings…');
+    await loadRankingsSnapshots();
+  }
   return renderRankings();
 }
 

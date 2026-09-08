@@ -124,6 +124,10 @@ function hasAnyVideo(evt) {
 async function loadRecentEvents() {
   const el = document.getElementById('recent-events');
   if (!el) return;
+  // Every event row is paged down on first load — show progress rather than an
+  // empty search card
+  el.innerHTML = loadingHtml('Loading events…');
+  el.style.display = 'block';
 
   // Which events have results (+ a fight-level video link). Uses an aggregate RPC so we
   // get every event in one small payload — a row-capped fight_search scan silently dropped
@@ -282,6 +286,8 @@ async function doEventSearch() {
   eventAcIdx = -1;
   if (q.length < 2) { renderActiveEventsTab(); return; }
 
+  const listEl = document.getElementById('recent-events');
+  if (listEl) { listEl.innerHTML = loadingHtml('Searching…'); listEl.style.display = 'block'; }
   const { data, error } = await sb
     .from('events')
     .select('*')
@@ -289,6 +295,8 @@ async function doEventSearch() {
     .order('date', { ascending: false })
     .limit(10);
 
+  // A newer keystroke may have already re-rendered the list; don't paint stale results over it
+  if (document.getElementById('event-search').value.trim() !== q) return;
   eventAcResults = data || [];
   renderEventSearchResults(q);
 }
@@ -347,6 +355,7 @@ async function selectEvent(evt) {
   eventFightRatings.clear();
   document.getElementById('event-search').value = evt.name;
   document.getElementById('recent-events').style.display = 'none';
+  showCardLoading('event-card', 'event-search-card', `Loading ${evt.name}…`);
 
   const { data, error } = await sb
     .from('fight_search')
@@ -355,7 +364,13 @@ async function selectEvent(evt) {
     .eq('event_id', evt.id)
     .order('fight_position', { ascending: true, nullsFirst: false });
 
-  if (error) { showToast('Error loading fights: ' + error.message); return; }
+  if (currentEvent !== evt) return; // the user opened something else meanwhile
+  if (error) {
+    restoreCardSearch('event-card', 'event-search-card');
+    document.getElementById('recent-events').style.display = 'block';
+    showToast('Error loading fights: ' + error.message);
+    return;
+  }
 
   // Sort by fight_position (nulls last) — mirrors the DB order as a client-side guarantee
   currentEventFights = (data || []).sort((a, b) => {

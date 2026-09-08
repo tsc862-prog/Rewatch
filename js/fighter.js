@@ -54,6 +54,7 @@ async function selectFighterForPage(fighter) {
   fighterPageAcResults = [];
   document.getElementById('fighter-page-search').value = fighter.name;
   document.getElementById('fighter-page-ac').style.display = 'none';
+  showCardLoading('fighter-card', 'fighter-search-card', `Loading ${fighter.name}…`);
 
   // Callers pass only { id, name } (autocomplete, navToFighter, nav-return
   // context), so pull the full row for the profile header alongside the fights.
@@ -66,7 +67,12 @@ async function selectFighterForPage(fighter) {
       .order('event_date', { ascending: false })
   ]);
 
-  if (error) { showToast('Error loading fights: ' + error.message); return; }
+  if (currentFighter && currentFighter.id !== fighter.id) return; // moved on to another fighter
+  if (error) {
+    restoreCardSearch('fighter-card', 'fighter-search-card');
+    showToast('Error loading fights: ' + error.message);
+    return;
+  }
 
   if (profile.data) currentFighter = profile.data;
   currentFighterFights = sortFighterFights(data || []);
