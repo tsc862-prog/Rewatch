@@ -446,14 +446,18 @@ function renderFightRow(fight, opts) {
   const eventTs = eventDateStr ? eventDateTs(eventDateStr) : NaN;
   const todayTs = new Date().setHours(0, 0, 0, 0);
   const isFuture = !isNaN(eventTs) && eventTs > todayTs;
+  const isToday = eventTs === todayTs;
 
   // The fight's own VOD or, failing that, the event replay carried on the
   // fight_search row (fightWatchLinks). Either one is watchable, so either one
   // hides the result until the fight is rated — on the fighter card too, which
   // used to reveal results for fights that only had a full-event replay.
+  // An event dated today is treated the same whether or not it has links yet:
+  // the card is airing (or about to), so its results are spoilers until rated.
+  // That also stops half-scraped rows from reading "Draw / NC" mid-show.
   const watchLinks = fightWatchLinks(fight);
   const hasVideo = watchLinks.length > 0;
-  const showResult = !isFuture && (isRated || !hasVideo);
+  const showResult = !isFuture && (isRated || !(hasVideo || isToday));
 
   // Display order while the result is hidden. Sherdog lists the winner first,
   // so fighter1 can't be trusted as-is. If either fighter carries a rank the
