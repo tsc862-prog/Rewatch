@@ -436,8 +436,9 @@ function getFighterRecord(name, beforeDateStr) {
 // weighted mean — the crowd's weight grows with its rating count and is full
 // at CROWD_FULL_COUNT. A UFC bonus award (bonus_awards: FOTN / POTN / KOTN /
 // SOTN) adds a small fixed bump — objective, and the only crowd-ish signal
-// for the pre-2025 back-catalog. Shown as a quiet number, never a pill.
-// Both the number and the bonus label sit behind the row's spoiler gate
+// for the pre-2025 back-catalog. The score is a quiet number; each award is a
+// small tag in the sub-meta line next to TITLE BOUT.
+// Both the number and the bonus tags sit behind the row's spoiler gate
 // (showResult): a crowd score gives away whether the fight was any good and
 // a bonus name gives away a finish, so they appear only with the result.
 const CROWD_FULL_COUNT = 50;
@@ -450,6 +451,11 @@ function bonusBump(bonusAwards) {
 }
 function bonusLabel(bonusAwards) {
   return String(bonusAwards || '').split(',').map(a => BONUS_LABEL[a.trim()]).filter(Boolean).join(' · ');
+}
+// One small tag per award (same family as TITLE BOUT / DEBUT), the full name in the tooltip.
+function bonusTagsHtml(bonusAwards) {
+  return String(bonusAwards || '').split(',').map(a => a.trim()).filter(a => BONUS_LABEL[a])
+    .map(a => `<span class="bonus-tag" title="${BONUS_LABEL[a]}">${a}</span>`).join('');
 }
 // → blended 0–5 score (1 dp) or null when there is nothing beyond the user's
 // own stars to blend in (no crowd data and no bonus).
@@ -568,7 +574,7 @@ function renderFightRow(fight, opts) {
         ${fight.fight_position_type ? '<span class="pos-type-tag pos-'+slugPosType(fight.fight_position_type)+'">'+escHtml(fight.fight_position_type)+'</span>' : ''}
         ${fight.is_title ? '<span class="title-tag">TITLE BOUT</span>' : ''}
         <span class="fight-row-wc">${escHtml(fight.weight_class || '—')}</span>
-        ${showResult && bonusLabel(fight.bonus_awards) ? '<span class="submeta-sep">·</span><span class="bonus-note">'+escHtml(bonusLabel(fight.bonus_awards))+'</span>' : ''}
+        ${showResult ? bonusTagsHtml(fight.bonus_awards) : ''}
         ${opts.showEvent && fight.event_name ? '<span class="submeta-sep">·</span><button class="nav-link" onclick="navToEvent(\''+fight.event_id+'\')">'+escHtml(fight.event_name)+'</button>'+(fight.event_date?'<span class="submeta-sep">·</span>'+formatEventDate(fight.event_date):'') : ''}
       </div>
       ${fight.notes ? '<div class="fight-row-notes-info">'+escHtml(fight.notes)+'</div>' : ''}

@@ -9,7 +9,7 @@ const start = source.indexOf('const CROWD_FULL_COUNT');
 const end = source.indexOf('function renderFightRow');
 const c = { escHtml: s => s };
 vm.createContext(c);
-vm.runInContext(source.slice(start, end) + '\nthis.blendRating = blendRating; this.crowdScoreHtml = crowdScoreHtml; this.bonusLabel = bonusLabel;', c);
+vm.runInContext(source.slice(start, end) + '\nthis.blendRating = blendRating; this.crowdScoreHtml = crowdScoreHtml; this.bonusLabel = bonusLabel; this.bonusTagsHtml = bonusTagsHtml;', c);
 
 // nothing to blend: no crowd, no bonus
 assert.equal(c.blendRating(4, null, 0, null), null);
@@ -30,6 +30,10 @@ assert.equal(c.blendRating(0, 9.0, 100, 'POTN'), 4.6);
 // labels
 assert.equal(c.bonusLabel('FOTN,POTN'), 'Fight of the Night · Performance of the Night');
 assert.equal(c.bonusLabel(null), '');
+// tags: one pill per award, full name in the tooltip, unknown codes dropped
+assert.equal(c.bonusTagsHtml('FOTN,POTN,XYZ'),
+  '<span class="bonus-tag" title="Fight of the Night">FOTN</span><span class="bonus-tag" title="Performance of the Night">POTN</span>');
+assert.equal(c.bonusTagsHtml(null), '');
 // markup: quiet span with a tooltip, nothing when there's nothing to show
 assert.equal(c.crowdScoreHtml({ crowd_rating: null, crowd_rating_count: 0, bonus_awards: null }, 3), '');
 const html = c.crowdScoreHtml({ crowd_rating: 8.36, crowd_rating_count: 444, bonus_awards: 'FOTN' }, 0);
