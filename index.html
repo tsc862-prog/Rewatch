@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://tzmsetedkjsrlfgavdyq.supabase.co" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/styles.css?v=20260907-vod">
+<link rel="stylesheet" href="css/styles.css?v=20260916-crowd">
 <script>if(localStorage.getItem('darkMode')==='true')document.documentElement.classList.add('dark-pending');</script>
 </head>
 <body>
@@ -263,7 +263,7 @@
     <div id="community-loading" class="dash-loading" style="display:none"><span class="spinner"></span> Loading community stats…</div>
     <div class="card">
       <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:1rem">
-        <p class="section-head" style="margin:0">Community Leaderboard</p>
+        <p class="section-head" style="margin:0">Community Leaderboard <span style="font-size:11px;font-weight:500;color:#aaa;margin-left:6px" title="Ratings are Verdict MMA fan scores (2025 onward), shown on the app's 5-star scale">crowd ratings · Verdict MMA fans, 2025→</span></p>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <select id="community-org" onchange="renderCommunityDashboard()" style="max-width:200px">
             <option value="">All orgs</option>
@@ -333,12 +333,12 @@
      then app.js which calls init). -->
 <script defer src="js/supabase.js?v=20260916-perf"></script>
 <script defer src="js/seed.js?v=20260916-perf"></script>
-<script defer src="js/events.js?v=20260916-perf"></script>
+<script defer src="js/events.js?v=20260916-crowd"></script>
 <script defer src="js/fighter.js?v=20260916-perf"></script>
 <script defer src="js/rankings.js?v=20260916-perf"></script>
 <script defer src="js/ratings.js?v=20260916-perf"></script>
 <script defer src="js/views.js?v=20260916-perf"></script>
-<script defer src="js/community.js?v=20260916-perf"></script>
+<script defer src="js/community.js?v=20260916-crowd"></script>
 <script defer src="js/app.js?v=20260916-perf"></script>
 </body>
 </html>

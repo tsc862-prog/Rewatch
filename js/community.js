@@ -1,7 +1,10 @@
 // ── Community Dashboard ───────────────────────────────────────────────────────
-// Mirrors the personal dashboard but spans ALL fights and uses community average
-// ratings (averaged across every user's ratings). Aggregated server-side via the
-// community_dashboard RPC and filterable by organization + division.
+// Mirrors the personal dashboard but spans ALL fights and uses the "other users"
+// ratings. While the app has no real user base those are the crowd ratings —
+// Verdict MMA's fan scores (fight_crowd_ratings, 0–10 halved to stars, 2025
+// onward) — which the community_dashboard RPC reads in place of the `ratings`
+// table (scraper repo migrate/community_crowd_ratings.sql). Filterable by
+// organization + division + year.
 
 let communityChartInst = null;
 let communityOrgsLoaded = false;
@@ -142,6 +145,6 @@ function renderCommunityLeaderboards(lb, topFights) {
   if (!el) return;
   if (!topFights.length) { el.innerHTML = '<div class="empty" style="padding:12px 0">—</div>'; return; }
   el.innerHTML = topFights.map((f, i) =>
-    `<div class="lb-row"><span class="lb-rank">${i + 1}</span><button class="nav-link lb-name" onclick="navToEvent('${f.event_id}')" title="${escHtml(f.f1)} vs ${escHtml(f.f2)}">${escHtml(f.f1)} vs ${escHtml(f.f2)}</button><span class="lb-val">${Number(f.avg_rating).toFixed(1)} ★</span></div>`
+    `<div class="lb-row"><span class="lb-rank">${i + 1}</span><button class="nav-link lb-name" onclick="navToEvent('${f.event_id}')" title="${escHtml(f.f1)} vs ${escHtml(f.f2)} — ${f.rating_count} ratings">${escHtml(f.f1)} vs ${escHtml(f.f2)}</button><span class="lb-val">${Number(f.avg_rating).toFixed(1)} ★</span></div>`
   ).join('');
 }
