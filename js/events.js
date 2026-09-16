@@ -437,6 +437,9 @@ function getFighterRecord(name, beforeDateStr) {
 // at CROWD_FULL_COUNT. A UFC bonus award (bonus_awards: FOTN / POTN / KOTN /
 // SOTN) adds a small fixed bump — objective, and the only crowd-ish signal
 // for the pre-2025 back-catalog. Shown as a quiet number, never a pill.
+// Both the number and the bonus label sit behind the row's spoiler gate
+// (showResult): a crowd score gives away whether the fight was any good and
+// a bonus name gives away a finish, so they appear only with the result.
 const CROWD_FULL_COUNT = 50;
 const BONUS_BUMP = { FOTN: 0.25, POTN: 0.1, KOTN: 0.1, SOTN: 0.1 };   // in stars
 const BONUS_LABEL = { FOTN: 'Fight of the Night', POTN: 'Performance of the Night',
@@ -557,7 +560,7 @@ function renderFightRow(fight, opts) {
           : `${rankTag(dF1rank)}<button class="nav-link" onclick="navToFighter('${dF1id}','${(dF1||'').replace(/'/g,"\\'")}')">${escHtml(dF1)}</button>${dF1debut ? ' <span class="debut-tag">DEBUT</span>' : ''}${f1rec ? ' <span class="fighter-record">('+f1rec+')</span>' : ''} vs ${rankTag(dF2rank)}<button class="nav-link" onclick="navToFighter('${dF2id}','${(dF2||'').replace(/'/g,"\\'")}')">${escHtml(dF2)}</button>${dF2debut ? ' <span class="debut-tag">DEBUT</span>' : ''}${f2rec ? ' <span class="fighter-record">('+f2rec+')</span>' : ''}`}</div>
         ${isFuture
           ? '<span class="upcoming-tag">Upcoming</span>'
-          : `<div class="fight-row-stars" id="stars-${fight.id}" onmouseleave="hoverFightStars('${fight.id}',0)">${buildClickableStars(fight.id, currentVal, 17)}</div>${crowdScoreHtml(fight, currentVal)}
+          : `<div class="fight-row-stars" id="stars-${fight.id}" onmouseleave="hoverFightStars('${fight.id}',0)">${buildClickableStars(fight.id, currentVal, 17)}</div>${showResult ? crowdScoreHtml(fight, currentVal) : ''}
              <div id="result-${fight.id}" class="fight-row-result-wrap">${resultHtml}</div>`}
         <div class="watch-icons">${watchLinks.map(watchIconHtml).join('')}</div>
       </div>
@@ -565,7 +568,7 @@ function renderFightRow(fight, opts) {
         ${fight.fight_position_type ? '<span class="pos-type-tag pos-'+slugPosType(fight.fight_position_type)+'">'+escHtml(fight.fight_position_type)+'</span>' : ''}
         ${fight.is_title ? '<span class="title-tag">TITLE BOUT</span>' : ''}
         <span class="fight-row-wc">${escHtml(fight.weight_class || '—')}</span>
-        ${bonusLabel(fight.bonus_awards) ? '<span class="submeta-sep">·</span><span class="bonus-note">'+escHtml(bonusLabel(fight.bonus_awards))+'</span>' : ''}
+        ${showResult && bonusLabel(fight.bonus_awards) ? '<span class="submeta-sep">·</span><span class="bonus-note">'+escHtml(bonusLabel(fight.bonus_awards))+'</span>' : ''}
         ${opts.showEvent && fight.event_name ? '<span class="submeta-sep">·</span><button class="nav-link" onclick="navToEvent(\''+fight.event_id+'\')">'+escHtml(fight.event_name)+'</button>'+(fight.event_date?'<span class="submeta-sep">·</span>'+formatEventDate(fight.event_date):'') : ''}
       </div>
       ${fight.notes ? '<div class="fight-row-notes-info">'+escHtml(fight.notes)+'</div>' : ''}
