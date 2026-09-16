@@ -330,6 +330,8 @@ body.dark .upcoming-tag{color:#666}
 .fight-star{display:inline-flex;cursor:pointer;transition:transform 0.1s}
 .fight-star:hover{transform:scale(1.15)}
 .fight-row-rating-lbl{font-size:11px;color:#bbb;min-width:28px}
+.crowd-score{font-size:11px;font-weight:600;color:#aaa;flex-shrink:0;cursor:default;font-variant-numeric:tabular-nums}
+.bonus-note{font-style:italic;color:#b5a36a}
 .community-avg{font-size:10px;color:#888;background:#f5f3ef;padding:2px 7px;border-radius:20px;font-weight:600;letter-spacing:0.2px}
 .community-avg .community-count{color:#bbb;font-weight:500}
 body.dark .community-avg{background:#252525;color:#aaa}

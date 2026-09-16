@@ -129,27 +129,18 @@ async function loadRecentEvents() {
   el.innerHTML = loadingHtml('Loading events…');
   el.style.display = 'block';
 
-  // Which events have results (+ a fight-level video link). Uses an aggregate RPC so we
-  // get every event in one small payload — a row-capped fight_search scan silently dropped
-  // the newest events once the dataset grew past the limit.
-  const { data: flags } = await sb.rpc('event_result_flags');
-  if (!flags?.length) { el.style.display = 'none'; return; }
-
-  const idsWithResults = new Set(flags.map(f => f.event_id));
-  eventsWithFightVideo = new Set(flags.filter(f => f.has_video).map(f => f.event_id));
-
-  // Fetch all events in pages, then sort client-side — a single row-capped select
-  // silently dropped whichever rows fell past the cap once the table outgrew it
-  // (upcoming events vanished while search, which queries the DB, still found them).
-  const allEvents = [];
-  const PAGE = 1000;
-  for (let from = 0; ; from += PAGE) {
-    const { data: page } = await sb.from('events').select('*').order('id').range(from, from + PAGE - 1);
-    if (page?.length) allEvents.push(...page);
-    if (!page || page.length < PAGE) break;
-  }
-  if (!allEvents.length) { el.style.display = 'none'; return; }
+  // One RPC returns every event row with its precomputed has_results /
+  // has_fight_video flags (event_flags_mv, refreshed at the end of every
+  // scraper pass) as a single jsonb array. One round trip, and a jsonb result
+  // isn't subject to the API's row cap — which is what used to force a flags
+  // RPC followed by paging the events table down 1000 rows at a time.
+  const { data: allEvents, error } = await sb.rpc('events_index');
+  if (error || !Array.isArray(allEvents) || !allEvents.length) { el.style.display = 'none'; showNoDb(); return; }
+  showDbReady(allEvents.length);
   auditOrgLogos(allEvents);
+
+  const idsWithResults = new Set(allEvents.filter(e => e.has_results).map(e => e.id));
+  eventsWithFightVideo = new Set(allEvents.filter(e => e.has_fight_video).map(e => e.id));
 
   const startOfToday = new Date(); startOfToday.setHours(0,0,0,0);
   const todayTs = startOfToday.getTime();
@@ -438,6 +429,49 @@ function getFighterRecord(name, beforeDateStr) {
   return `${w}-${l}${d ? '-'+d : ''}`;
 }
 
+// ── Crowd blend ──────────────────────────────────────────────────────────────
+// "Other users": Verdict MMA fans score every bout 0–10 (fight_search
+// crowd_rating / crowd_rating_count, scraped nightly). Ours are 0–5 stars, so
+// the crowd score is halved, then blended with the user's own rating as a
+// weighted mean — the crowd's weight grows with its rating count and is full
+// at CROWD_FULL_COUNT. A UFC bonus award (bonus_awards: FOTN / POTN / KOTN /
+// SOTN) adds a small fixed bump — objective, and the only crowd-ish signal
+// for the pre-2025 back-catalog. Shown as a quiet number, never a pill.
+const CROWD_FULL_COUNT = 50;
+const BONUS_BUMP = { FOTN: 0.25, POTN: 0.1, KOTN: 0.1, SOTN: 0.1 };   // in stars
+const BONUS_LABEL = { FOTN: 'Fight of the Night', POTN: 'Performance of the Night',
+                      KOTN: 'Knockout of the Night', SOTN: 'Submission of the Night' };
+
+function bonusBump(bonusAwards) {
+  return String(bonusAwards || '').split(',').reduce((sum, a) => sum + (BONUS_BUMP[a.trim()] || 0), 0);
+}
+function bonusLabel(bonusAwards) {
+  return String(bonusAwards || '').split(',').map(a => BONUS_LABEL[a.trim()]).filter(Boolean).join(' · ');
+}
+// → blended 0–5 score (1 dp) or null when there is nothing beyond the user's
+// own stars to blend in (no crowd data and no bonus).
+function blendRating(mine, crowdRating, crowdCount, bonusAwards) {
+  const count = Number(crowdCount) || 0;
+  const crowd = crowdRating != null && count > 0 ? Number(crowdRating) / 2 : null;
+  const wCrowd = crowd == null ? 0 : Math.min(1, count / CROWD_FULL_COUNT);
+  const wMine = mine > 0 ? 1 : 0;
+  const bump = bonusBump(bonusAwards);
+  if (!wCrowd && !(wMine && bump)) return null;
+  const base = wMine || wCrowd ? (mine * wMine + (crowd || 0) * wCrowd) / (wMine + wCrowd) : 0;
+  return Math.round(Math.min(5, Math.max(0, base + bump)) * 10) / 10;
+}
+function crowdScoreHtml(fight, mine) {
+  const v = blendRating(mine, fight.crowd_rating, fight.crowd_rating_count, fight.bonus_awards);
+  if (v == null) return '';
+  const parts = [];
+  if (fight.crowd_rating != null && fight.crowd_rating_count > 0)
+    parts.push(`Fans on Verdict MMA: ${Number(fight.crowd_rating).toFixed(1)}/10 from ${fight.crowd_rating_count} ratings`);
+  const bl = bonusLabel(fight.bonus_awards);
+  if (bl) parts.push(bl);
+  parts.push(mine > 0 ? 'blended with your rating' : 'crowd only — rate to blend');
+  return `<span class="crowd-score" title="${escHtml(parts.join(' · '))}">${v.toFixed(1)}</span>`;
+}
+
 function renderFightRow(fight, opts) {
   opts = opts || {};
   const rating = myRatings.find(r => r.fight_id === fight.id);
@@ -523,7 +557,7 @@ function renderFightRow(fight, opts) {
           : `${rankTag(dF1rank)}<button class="nav-link" onclick="navToFighter('${dF1id}','${(dF1||'').replace(/'/g,"\\'")}')">${escHtml(dF1)}</button>${dF1debut ? ' <span class="debut-tag">DEBUT</span>' : ''}${f1rec ? ' <span class="fighter-record">('+f1rec+')</span>' : ''} vs ${rankTag(dF2rank)}<button class="nav-link" onclick="navToFighter('${dF2id}','${(dF2||'').replace(/'/g,"\\'")}')">${escHtml(dF2)}</button>${dF2debut ? ' <span class="debut-tag">DEBUT</span>' : ''}${f2rec ? ' <span class="fighter-record">('+f2rec+')</span>' : ''}`}</div>
         ${isFuture
           ? '<span class="upcoming-tag">Upcoming</span>'
-          : `<div class="fight-row-stars" id="stars-${fight.id}" onmouseleave="hoverFightStars('${fight.id}',0)">${buildClickableStars(fight.id, currentVal, 17)}</div>
+          : `<div class="fight-row-stars" id="stars-${fight.id}" onmouseleave="hoverFightStars('${fight.id}',0)">${buildClickableStars(fight.id, currentVal, 17)}</div>${crowdScoreHtml(fight, currentVal)}
              <div id="result-${fight.id}" class="fight-row-result-wrap">${resultHtml}</div>`}
         <div class="watch-icons">${watchLinks.map(watchIconHtml).join('')}</div>
       </div>
@@ -531,6 +565,7 @@ function renderFightRow(fight, opts) {
         ${fight.fight_position_type ? '<span class="pos-type-tag pos-'+slugPosType(fight.fight_position_type)+'">'+escHtml(fight.fight_position_type)+'</span>' : ''}
         ${fight.is_title ? '<span class="title-tag">TITLE BOUT</span>' : ''}
         <span class="fight-row-wc">${escHtml(fight.weight_class || '—')}</span>
+        ${bonusLabel(fight.bonus_awards) ? '<span class="submeta-sep">·</span><span class="bonus-note">'+escHtml(bonusLabel(fight.bonus_awards))+'</span>' : ''}
         ${opts.showEvent && fight.event_name ? '<span class="submeta-sep">·</span><button class="nav-link" onclick="navToEvent(\''+fight.event_id+'\')">'+escHtml(fight.event_name)+'</button>'+(fight.event_date?'<span class="submeta-sep">·</span>'+formatEventDate(fight.event_date):'') : ''}
       </div>
       ${fight.notes ? '<div class="fight-row-notes-info">'+escHtml(fight.notes)+'</div>' : ''}

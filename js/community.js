@@ -74,7 +74,7 @@ async function renderCommunityDashboard() {
   renderCommunityCards('clb-cards-low', data.low_cards || []);
 }
 
-function renderCommunityMethodChart(methods) {
+async function renderCommunityMethodChart(methods) {
   const grouped = groupMethodCounts(methods.map(m => m.method), methods.map(m => m.count));
   const labels = grouped.labels;
   const counts = grouped.counts;
@@ -86,6 +86,9 @@ function renderCommunityMethodChart(methods) {
   const ctx = document.getElementById('cMethodChart');
   if (communityChartInst) { communityChartInst.destroy(); communityChartInst = null; }
   if (!labels.length) return;
+  // Legend is painted; the doughnut waits for Chart.js (lazy-loaded on first use).
+  try { await ensureChartJs(); } catch (e) { console.warn(e.message); return; }
+  if (communityChartInst) { communityChartInst.destroy(); communityChartInst = null; }
   communityChartInst = new Chart(ctx, {
     type: 'doughnut',
     data: { labels, datasets: [{ data: counts, backgroundColor: colors, borderWidth: 0 }] },

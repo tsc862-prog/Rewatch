@@ -14,7 +14,11 @@ At widths up to 1,000px, navigation wraps below the header and matchups occupy t
 
 ## Checks
 
-Run `node tests/rating-saves.cjs` for delayed-save, overlapping-note, retry, and account-switch regression checks. Preview event/fighter pages at phone and desktop widths when changing layouts.
+Run `node tests/rating-saves.cjs` for delayed-save, overlapping-note, retry, and account-switch regression checks, and `node tests/crowd-blend.cjs` for the crowd blend rule.
+
+## Crowd score
+
+Every past fight row can carry a quiet grey number after the stars: the user's rating blended with "other users". The crowd side is Verdict MMA's fan score (`crowd_rating` 0–10 and `crowd_rating_count` on `fight_search`, scraped nightly by the scraper repo's `verdict_scraper.py`), halved to the 0–5 star scale and weighted `min(1, count / 50)` against the user's own rating (weight 1). UFC bonus awards (`bonus_awards`: `FOTN`, `POTN`, `KOTN`, `SOTN`) add a fixed bump of 0.25 star for Fight of the Night and 0.1 for the per-fighter awards, capped at 5; the award name appears as muted italic text in the row's sub-meta line. The number is omitted when there is nothing beyond the user's own stars to blend (no crowd data and no bonus); a bonus alone never produces a score. The tooltip spells out the inputs. `blendRating()` and `crowdScoreHtml()` in `js/events.js` hold the rule. Tables and view columns were added on September 16, 2026 (scraper repo `migrate/add_crowd_ratings.sql`). Preview event/fighter pages at phone and desktop widths when changing layouts.
 
 ## Database deployment order
 
@@ -32,5 +36,12 @@ A row with any watch link, fight-level or event-level, hides its result behind "
 
 ## Loading states
 
-Every screen that waits on the database shows the shared spinner (`loadingHtml()` in `js/app.js`, the `.dash-loading` block) instead of sitting still or showing an empty state early: the events list on first load, event search, the event card and fighter card (via `showCardLoading()`, which swaps the search card out the moment a row is clicked), the My Ratings table before ratings arrive, the rankings tab while its snapshot index loads, and the dashboard activity feed. The dashboard and community tabs already had inline spinners. Card loads check that the user has not opened something else before painting, and restore the search card on error.
+Every screen that waits on the database shows the shared spinner (`loadingHtml()` in `js/app.js`, the `.dash-loading` block) instead of sitting still or showing an empty state early: the events list on first load (one `events_index()` call), event search, the event card and fighter card (via `showCardLoading()`, which swaps the search card out the moment a row is clicked), the My Ratings table before ratings arrive, the rankings tab while its snapshot index loads, and the dashboard activity feed. The dashboard and community tabs already had inline spinners. Card loads check that the user has not opened something else before painting, and restore the search card on error.
 
+## Load performance
+
+Each screen makes one request against precomputed data instead of assembling it client-side. `events_index()` returns every event with `has_results` / `has_fight_video` flags as a single JSON array (it replaced a fights count, an `event_result_flags` aggregate, and paging the events table down 1000 rows at a time, which together took 3 to 4 seconds). `my_ratings()` returns the signed-in user's ratings already joined to `fight_search`, newest first, in the same `{ ...fight, ...rating }` shape the app caches (it replaced a ratings query followed by chunked `fight_search` lookups). `community_dashboard()` keeps its signature but reads the `community_fight_base` materialized view.
+
+The flags and the community base are materialized views in Supabase, refreshed by `refresh_app_caches.py` in the scraper repo at the end of every scraper pass (nightly workflow and the live-event loop). Between passes the Past list and Community stats reflect the last refresh; an open event card always reads live rows. The migration is `migrate/app_perf_precompute.sql` in the scraper repo and must be applied before deploying this frontend (added September 16, 2026).
+
+`init()` in `js/app.js` fires every initial request at once and does not wait for the events list before marking ratings-dependent screens ready. supabase-js is pinned to an exact version, all scripts are `defer`red, and Chart.js is loaded on first use by `ensureChartJs()` rather than on every page view.

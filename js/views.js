@@ -300,7 +300,7 @@ async function renderActivityFeed() {
   `).join('');
 }
 
-function renderMethodChart() {
+async function renderMethodChart() {
   const counts = {};
   dashFilter(myRatings).forEach(f => { const k = f.method||'Other'; counts[k]=(counts[k]||0)+1; });
   const grouped = groupMethodCounts(Object.keys(counts), Object.values(counts));
@@ -312,6 +312,10 @@ function renderMethodChart() {
   const ctx = document.getElementById('methodChart');
   if (methodChartInst) { methodChartInst.destroy(); methodChartInst = null; }
   if (!labels.length) return;
+  // The legend above is already painted; the doughnut waits for Chart.js
+  // (lazy-loaded on first dashboard open).
+  try { await ensureChartJs(); } catch (e) { console.warn(e.message); return; }
+  if (methodChartInst) { methodChartInst.destroy(); methodChartInst = null; }
   methodChartInst = new Chart(ctx, {type:'doughnut',data:{labels,datasets:[{data,backgroundColor:colors.slice(0,labels.length),borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}}}});
 }
 

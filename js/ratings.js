@@ -1,26 +1,13 @@
 // ── Ratings (load / delete) ───────────────────────────────────────────────────
 
 async function loadRatings() {
-  const { data: ratingsData, error } = await sb
-    .from('ratings')
-    .select('*')
-    .order('logged_at', { ascending: false });
-
-  if (error || !ratingsData?.length) { myRatings = []; return; }
-
-  const fightIds = ratingsData.map(r => r.fight_id);
-  // Fetch fight metadata in batches: a single .in() with hundreds of 36-char UUIDs
-  // overflows the request URL length limit and returns 400 (silently dropping all
-  // fighter/event/method metadata from the dashboard).
-  const CHUNK = 100;
-  const chunks = [];
-  for (let i = 0; i < fightIds.length; i += CHUNK) chunks.push(fightIds.slice(i, i + CHUNK));
-  const results = await Promise.all(
-    chunks.map(c => sb.from('fight_search').select('*').in('id', c))
-  );
-  const fightMap = {};
-  results.forEach(({ data }) => (data || []).forEach(f => { fightMap[f.id] = f; }));
-  myRatings = ratingsData.map(r => ({ ...fightMap[r.fight_id], ...r }));
+  // One round trip: my_ratings() joins the caller's ratings to fight_search
+  // server-side (under the ratings RLS) and returns each fight row overlaid
+  // with its rating row, newest first — the same { ...fight, ...rating } shape
+  // the app has always cached. Replaces a ratings query followed by a dozen
+  // chunked fight_search lookups.
+  const { data, error } = await sb.rpc('my_ratings');
+  myRatings = (error || !Array.isArray(data)) ? [] : data;
 }
 
 async function deleteRating(fightId) {

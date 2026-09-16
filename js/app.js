@@ -161,26 +161,37 @@ async function init() {
   if (data.session) currentUser = data.session.user;
   document.getElementById('app-shell').style.display = 'block';
   updateAuthUI();
-  await Promise.all([currentUser ? loadRatings() : Promise.resolve(), tryLoadDB(), loadFightAggregates()]);
+  // Every initial request goes out at once. The events list renders itself
+  // as soon as it lands; it isn't awaited here so the ratings-dependent
+  // screens (My Ratings, Dashboard) don't wait on it either.
+  setStatus('Loading…');
+  const eventsLoad = loadRecentEvents();
+  await Promise.all([currentUser ? loadRatings() : Promise.resolve(), loadFightAggregates()]);
   appDataReady = true;
   renderTable();
+  // The events list may have painted before the ratings arrived — re-render it
+  // from cache so the per-event "N rated" badges show up.
+  eventsLoad.then(() => renderActiveEventsTab());
   // If the user navigated to the dashboard while data was still loading, render it now
   if (document.getElementById('view-dashboard')?.classList.contains('active')) renderDashboard();
 }
 
-async function tryLoadDB() {
-  setStatus('Checking database…');
-  try {
-    const { count, error } = await sb
-      .from('fights')
-      .select('*', { count: 'exact', head: true })
-      .not('is_amateur', 'is', true);
-    if (error) throw error;
-    if (count > 0) showDbReady(count);
-    else showNoDb();
-  } catch(e) {
-    showNoDb();
+// Chart.js is only used by the two dashboard tabs, so it loads on first use
+// instead of on every page view (~200KB off the initial load). Resolves once
+// window.Chart exists; a failed load clears the cache so the next call retries.
+let chartJsLoad = null;
+function ensureChartJs() {
+  if (window.Chart) return Promise.resolve();
+  if (!chartJsLoad) {
+    chartJsLoad = new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js';
+      s.onload = resolve;
+      s.onerror = () => { chartJsLoad = null; reject(new Error('Chart.js failed to load')); };
+      document.head.appendChild(s);
+    });
   }
+  return chartJsLoad;
 }
 
 // ── Shared Helpers ────────────────────────────────────────────────────────────
