@@ -424,6 +424,10 @@ function getFighterRecord(name, beforeDateStr) {
     const isF1 = r.fighter1_name === name;
     const isF2 = r.fighter2_name === name;
     if (!isF1 && !isF2) return;
+    // Only rated fights count, matching fighterSummaryStats. A ratings row can
+    // exist with no stars (notes-only, or a blank notes box that got saved),
+    // and those must not reveal or tally a result the user hasn't rated.
+    if (!r.rating) return;
     const ts = r.event_date ? new Date(r.event_date).getTime() : null;
     if (!ts || ts >= beforeTs) return;
     if (r.winner_name === name) w++;
@@ -632,6 +636,13 @@ function saveFightRating(fightId) {
 
 function saveNotes(fightId) {
   if (!currentUser) return Promise.resolve();
+  // Blurring an empty notes box on a fight with no rating and no existing row
+  // has nothing to save; writing it would create an empty placeholder row.
+  const notesEl = document.getElementById('notes-' + fightId);
+  const notes = notesEl ? notesEl.value.trim() : '';
+  const hasRow = myRatings.some(r => r.fight_id === fightId);
+  const hasRating = !!eventFightRatings.get(fightId)?.rating;
+  if (!notes && !hasRow && !hasRating) return Promise.resolve();
   return queueRatingSave(fightId, {});
 }
 

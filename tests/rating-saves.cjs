@@ -19,5 +19,7 @@ const tick=()=>new Promise(r=>setImmediate(r));
   t=setup();p=t.c.saveFightRating('fight');await tick();t.requests[0].reject(new Error('offline'));await p;
   t.c.eventFightRatings.get('fight').rating=4;p=t.c.saveFightRating('fight');await tick();assert.equal(t.writes[1].rating,4);t.requests[1].resolve({data:t.requests[1].entry,error:null});await p;
   t=setup();p=t.c.saveFightRating('fight');await tick();t.c.currentUser={id:'b'};t.requests[0].resolve({data:t.requests[0].entry,error:null});await p;assert.equal(t.c.myRatings.length,0);
-  console.log('PASS: rapid changes, overlapping notes, retry after thrown error, account-switch cache isolation');
+  t=setup();t.c.eventFightRatings.get('fight').rating=0;await t.c.saveNotes('fight');assert.equal(t.writes.length,0);
+  t.c.myRatings.push({fight_id:'fight',rating:null,notes:'old'});p=t.c.saveNotes('fight');await tick();assert.equal(t.writes.length,1);assert.equal(t.writes[0].notes,null);t.requests[0].resolve({data:t.requests[0].entry,error:null});await p;
+  console.log('PASS: rapid changes, overlapping notes, retry after thrown error, account-switch cache isolation, no empty placeholder row');
 })().catch(e=>{console.error(e);process.exitCode=1;});
