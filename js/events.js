@@ -429,16 +429,19 @@ function getFighterRecord(name, beforeDateStr) {
   return `${w}-${l}${d ? '-'+d : ''}`;
 }
 
-// ── Crowd score ──────────────────────────────────────────────────────────────
-// "Other users": Verdict MMA fans score every bout 0–10 (fight_search
-// crowd_rating / crowd_rating_count, scraped nightly). The row shows that
-// score as-is, halved to the app's 0–5 star scale so it reads against the
-// stars beside it — it is NOT blended with the user's own rating (user's
-// call, 2026-09-17). A UFC bonus award (bonus_awards: FOTN / POTN / KOTN /
-// SOTN) is a tag right-aligned on the sub-meta line (weight class / event
-// name). Both the number and the tags sit behind the row's spoiler gate
-// (showResult): a crowd score gives away whether the fight was any good and
-// a bonus name gives away a finish, so they appear only with the result.
+// ── Other users' average ─────────────────────────────────────────────────────
+// The grey number after the stars is the OTHER USERS' average rating for the
+// bout, on the app's 0–5 star scale. The app has no real user base yet, so
+// that average is currently sourced from Verdict MMA's fans (fight_search
+// crowd_rating 0–10 / crowd_rating_count, scraped nightly) halved to stars —
+// shown as-is, never blended with the viewer's own rating. When real users
+// arrive, point crowdScore() at an RPC that averages other users' ratings
+// (excluding the viewer) with the crowd; nothing else in the row changes.
+// A UFC bonus award (bonus_awards: FOTN / POTN / KOTN / SOTN) is a tag
+// right-aligned on the sub-meta line (weight class / event name). Both the
+// number and the tags sit behind the row's spoiler gate (showResult): an
+// average gives away whether the fight was any good and a bonus name gives
+// away a finish, so they appear only with the result.
 const BONUS_LABEL = { FOTN: 'Fight of the Night', POTN: 'Performance of the Night',
                       KOTN: 'Knockout of the Night', SOTN: 'Submission of the Night' };
 
@@ -451,7 +454,7 @@ function bonusTagsHtml(bonusAwards) {
   return String(bonusAwards || '').split(',').map(a => a.trim()).filter(a => BONUS_LABEL[a])
     .map(a => `<span class="bonus-tag" title="${BONUS_LABEL[a]}">${a}</span>`).join('');
 }
-// → the crowd score on the 0–5 star scale (1 dp), or null when no fan has rated it.
+// → other users' average on the 0–5 star scale (1 dp), or null when nobody has rated it.
 function crowdScore(crowdRating, crowdCount) {
   const count = Number(crowdCount) || 0;
   if (crowdRating == null || count <= 0) return null;
@@ -460,7 +463,7 @@ function crowdScore(crowdRating, crowdCount) {
 function crowdScoreHtml(fight) {
   const v = crowdScore(fight.crowd_rating, fight.crowd_rating_count);
   if (v == null) return '';
-  const tip = `Fans on Verdict MMA: ${Number(fight.crowd_rating).toFixed(1)}/10 from ${fight.crowd_rating_count} rating${fight.crowd_rating_count === 1 ? '' : 's'}`;
+  const tip = `Other users' average: ${v.toFixed(1)} ★ — currently Verdict MMA fans, ${Number(fight.crowd_rating).toFixed(1)}/10 from ${fight.crowd_rating_count} rating${fight.crowd_rating_count === 1 ? '' : 's'}`;
   return `<span class="crowd-score" title="${escHtml(tip)}">${v.toFixed(1)}</span>`;
 }
 

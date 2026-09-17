@@ -1,6 +1,6 @@
-// Crowd score shown next to the stars: Verdict MMA's 0–10 fan score halved to
-// the app's 0–5 scale, shown as-is (not blended with the user's rating), plus
-// the bonus-award tags.
+// Other users' average shown next to the stars — currently sourced from
+// Verdict MMA's 0–10 fan score halved to the app's 0–5 scale, shown as-is
+// (not blended with the viewer's rating) — plus the bonus-award tags.
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
@@ -28,7 +28,7 @@ assert.equal(c.bonusTagsHtml(null), '');
 // markup: quiet span with the source in the tooltip; nothing without crowd data
 assert.equal(c.crowdScoreHtml({ crowd_rating: null, crowd_rating_count: 0, bonus_awards: 'FOTN' }), '');
 assert.equal(c.crowdScoreHtml({ crowd_rating: 8.36, crowd_rating_count: 444 }),
-  '<span class="crowd-score" title="Fans on Verdict MMA: 8.4/10 from 444 ratings">4.2</span>');
+  `<span class="crowd-score" title="Other users' average: 4.2 ★ — currently Verdict MMA fans, 8.4/10 from 444 ratings">4.2</span>`);
 assert.equal(c.crowdScoreHtml({ crowd_rating: 7, crowd_rating_count: 1 }),
-  '<span class="crowd-score" title="Fans on Verdict MMA: 7.0/10 from 1 rating">3.5</span>');
+  `<span class="crowd-score" title="Other users' average: 3.5 ★ — currently Verdict MMA fans, 7.0/10 from 1 rating">3.5</span>`);
 console.log('PASS: crowd score (unblended), bonus labels and tags, markup');
