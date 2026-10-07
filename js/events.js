@@ -467,6 +467,49 @@ function crowdScoreHtml(fight) {
   return `<span class="crowd-score" title="${escHtml(tip)}">${v.toFixed(1)}</span>`;
 }
 
+// ── Betting odds ─────────────────────────────────────────────────────────────
+// fight_search carries each fighter's BestFightOdds line (fighter1_odds_open /
+// fighter1_odds_close and the fighter2 pair; American odds, -210 favourite /
+// +175 underdog; the close is the midpoint of BFO's closing range, scraped
+// nightly by the scraper repo's bfo_scraper.py). The closing line is a quiet
+// grey number after the fighter's name. It is NOT behind the spoiler gate:
+// odds are public before the bell and say nothing about the result, so they
+// show on hidden-result rows too; for an upcoming bout the column holds the
+// current line and the tooltip says so. An UPSET tag (same family as the
+// bonus tags, right end of the sub-meta line) marks a winner who closed as
+// the underdog — that does give away the result, so it sits behind the
+// spoiler gate like the bonus tags.
+function fmtOdds(v) {
+  if (v == null || v === '' || isNaN(Number(v))) return '';
+  const n = Math.round(Number(v));
+  return n > 0 ? `+${n}` : `\u2212${Math.abs(n)}`;
+}
+function oddsHtml(close, open, isFuture) {
+  const c = fmtOdds(close);
+  if (!c) return '';
+  const o = fmtOdds(open);
+  const tip = `${isFuture ? 'Current' : 'Closing'} line ${c}${o && o !== c ? ` (opened ${o})` : ''} — BestFightOdds`;
+  return `<span class="odds-tag" title="${escHtml(tip)}">${c}</span>`;
+}
+// → the winner's closing price when they closed as the underdog and the loser
+//   as the favourite, else null (no result, no lines, or a pick'em).
+function upsetPrice(fight) {
+  if (fight.winner_id == null) return null;
+  const w = String(fight.winner_id);
+  let win, lose;
+  if (w === String(fight.fighter1_id)) { win = fight.fighter1_odds_close; lose = fight.fighter2_odds_close; }
+  else if (w === String(fight.fighter2_id)) { win = fight.fighter2_odds_close; lose = fight.fighter1_odds_close; }
+  else return null;
+  if (win == null || lose == null) return null;
+  return Number(win) > 0 && Number(lose) < 0 ? Number(win) : null;
+}
+function upsetTagHtml(fight) {
+  const p = upsetPrice(fight);
+  if (p == null) return '';
+  const tip = `Upset — ${fight.winner_name || 'the winner'} closed as a ${fmtOdds(p)} underdog`;
+  return `<span class="bonus-tag upset-tag" title="${escHtml(tip)}">UPSET</span>`;
+}
+
 function renderFightRow(fight, opts) {
   opts = opts || {};
   const rating = myRatings.find(r => r.fight_id === fight.id);
@@ -508,6 +551,10 @@ function renderFightRow(fight, opts) {
   const dF2rank = swapOrder ? fight.fighter1_rank : fight.fighter2_rank;
   const dF1debut = swapOrder ? fight.fighter2_is_debut : fight.fighter1_is_debut;
   const dF2debut = swapOrder ? fight.fighter1_is_debut : fight.fighter2_is_debut;
+  const dF1odds = oddsHtml(swapOrder ? fight.fighter2_odds_close : fight.fighter1_odds_close,
+                           swapOrder ? fight.fighter2_odds_open : fight.fighter1_odds_open, isFuture);
+  const dF2odds = oddsHtml(swapOrder ? fight.fighter1_odds_close : fight.fighter2_odds_close,
+                           swapOrder ? fight.fighter1_odds_open : fight.fighter2_odds_open, isFuture);
   const f1rec = getFighterRecord(dF1, fight.event_date);
   const f2rec = getFighterRecord(dF2, fight.event_date);
 
@@ -516,9 +563,11 @@ function renderFightRow(fight, opts) {
   // ellipsis. When the perspective matches one side, render "vs Opponent"
   // instead. A name mismatch (data quirk) falls back to the full matchup.
   const opp = opts.perspective === fight.fighter1_name
-    ? { name: fight.fighter2_name, id: fight.fighter2_id, rank: fight.fighter2_rank, debut: fight.fighter2_is_debut }
+    ? { name: fight.fighter2_name, id: fight.fighter2_id, rank: fight.fighter2_rank, debut: fight.fighter2_is_debut,
+        odds: oddsHtml(fight.fighter2_odds_close, fight.fighter2_odds_open, isFuture) }
     : opts.perspective === fight.fighter2_name
-      ? { name: fight.fighter1_name, id: fight.fighter1_id, rank: fight.fighter1_rank, debut: fight.fighter1_is_debut }
+      ? { name: fight.fighter1_name, id: fight.fighter1_id, rank: fight.fighter1_rank, debut: fight.fighter1_is_debut,
+          odds: oddsHtml(fight.fighter1_odds_close, fight.fighter1_odds_open, isFuture) }
       : null;
   const oppRec = opp ? getFighterRecord(opp.name, fight.event_date) : null;
 
@@ -548,8 +597,8 @@ function renderFightRow(fight, opts) {
     <div class="fight-row ${isRated ? 'rated' : ''} ${wlClass}" id="fight-row-${fight.id}">
       <div class="fight-row-single">
         <div class="fight-row-matchup">${opp
-          ? `<span class="vs-prefix">vs</span> ${rankTag(opp.rank)}<button class="nav-link" onclick="navToFighter('${opp.id}','${(opp.name||'').replace(/'/g,"\\'")}')">${escHtml(opp.name)}</button>${opp.debut ? ' <span class="debut-tag">DEBUT</span>' : ''}${oppRec ? ' <span class="fighter-record">('+oppRec+')</span>' : ''}`
-          : `${rankTag(dF1rank)}<button class="nav-link" onclick="navToFighter('${dF1id}','${(dF1||'').replace(/'/g,"\\'")}')">${escHtml(dF1)}</button>${dF1debut ? ' <span class="debut-tag">DEBUT</span>' : ''}${f1rec ? ' <span class="fighter-record">('+f1rec+')</span>' : ''} vs ${rankTag(dF2rank)}<button class="nav-link" onclick="navToFighter('${dF2id}','${(dF2||'').replace(/'/g,"\\'")}')">${escHtml(dF2)}</button>${dF2debut ? ' <span class="debut-tag">DEBUT</span>' : ''}${f2rec ? ' <span class="fighter-record">('+f2rec+')</span>' : ''}`}</div>
+          ? `<span class="vs-prefix">vs</span> ${rankTag(opp.rank)}<button class="nav-link" onclick="navToFighter('${opp.id}','${(opp.name||'').replace(/'/g,"\\'")}')">${escHtml(opp.name)}</button>${opp.debut ? ' <span class="debut-tag">DEBUT</span>' : ''}${oppRec ? ' <span class="fighter-record">('+oppRec+')</span>' : ''}${opp.odds ? ' '+opp.odds : ''}`
+          : `${rankTag(dF1rank)}<button class="nav-link" onclick="navToFighter('${dF1id}','${(dF1||'').replace(/'/g,"\\'")}')">${escHtml(dF1)}</button>${dF1debut ? ' <span class="debut-tag">DEBUT</span>' : ''}${f1rec ? ' <span class="fighter-record">('+f1rec+')</span>' : ''}${dF1odds ? ' '+dF1odds : ''} vs ${rankTag(dF2rank)}<button class="nav-link" onclick="navToFighter('${dF2id}','${(dF2||'').replace(/'/g,"\\'")}')">${escHtml(dF2)}</button>${dF2debut ? ' <span class="debut-tag">DEBUT</span>' : ''}${f2rec ? ' <span class="fighter-record">('+f2rec+')</span>' : ''}${dF2odds ? ' '+dF2odds : ''}`}</div>
         ${isFuture
           ? '<span class="upcoming-tag">Upcoming</span>'
           : `<div class="fight-row-stars" id="stars-${fight.id}" onmouseleave="hoverFightStars('${fight.id}',0)">${buildClickableStars(fight.id, currentVal, 17)}</div>${showResult ? crowdScoreHtml(fight) : ''}
@@ -561,7 +610,7 @@ function renderFightRow(fight, opts) {
         ${fight.is_title ? '<span class="title-tag">TITLE BOUT</span>' : ''}
         <span class="fight-row-wc">${escHtml(fight.weight_class || '—')}</span>
         ${opts.showEvent && fight.event_name ? '<span class="submeta-sep">·</span><button class="nav-link" onclick="navToEvent(\''+fight.event_id+'\')">'+escHtml(fight.event_name)+'</button>'+(fight.event_date?'<span class="submeta-sep">·</span>'+formatEventDate(fight.event_date):'') : ''}
-        ${showResult && bonusTagsHtml(fight.bonus_awards) ? '<span class="fight-row-bonuses">'+bonusTagsHtml(fight.bonus_awards)+'</span>' : ''}
+        ${showResult && (bonusTagsHtml(fight.bonus_awards) || upsetTagHtml(fight)) ? '<span class="fight-row-bonuses">'+bonusTagsHtml(fight.bonus_awards)+upsetTagHtml(fight)+'</span>' : ''}
       </div>
       ${fight.notes ? '<div class="fight-row-notes-info">'+escHtml(fight.notes)+'</div>' : ''}
       ${!isFuture ? `<input class="fight-row-notes" id="notes-${fight.id}" type="text" placeholder="Notes…" value="${escHtml(notes)}"

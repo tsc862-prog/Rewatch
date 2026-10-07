@@ -346,6 +346,8 @@ body.dark .community-avg .community-count{color:#666}
 .vs-prefix{color:#999;font-weight:600}
 .fight-details{color:#888;font-style:italic}
 .fighter-record{font-size:11px;font-weight:500;color:#bbb}
+.odds-tag{font-size:10px;font-weight:600;color:#b5b2aa;font-variant-numeric:tabular-nums;cursor:default}
+.upset-tag{background:#FEF3C7;color:#854F0B}
 .nav-link{background:none;border:none;padding:0;font:inherit;color:inherit;font-weight:700;cursor:pointer;text-decoration:none;transition:color 0.15s}
 .nav-link:hover{color:#E24B4A}
 
@@ -569,6 +571,8 @@ body.dark .fight-row-result.result-loss{background:#2a1210}
 body.dark .vs-prefix{color:#777}
 body.dark .fight-details{color:#666}
 body.dark .fighter-record{color:#666}
+body.dark .odds-tag{color:#6a6a6a}
+body.dark .upset-tag{background:#3a2a00;color:#f0c040}
 
 /* Nav Link */
 body.dark .nav-link{color:#d4d4d4}
