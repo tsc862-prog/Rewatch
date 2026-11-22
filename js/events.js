@@ -510,6 +510,38 @@ function upsetTagHtml(fight) {
   return `<span class="bonus-tag upset-tag" title="${escHtml(tip)}">UPSET</span>`;
 }
 
+// A fight's written summary (`summary` on fight_search: 2–4 sentences on how
+// the bout played out) sits behind a collapsed "Summary" toggle on the
+// sub-meta line. It gives the result away, so it is stricter than the result
+// gate: it needs the viewer's own star rating, even on rows whose result is
+// already shown. Until then the row carries a locked "Summary after rating"
+// label and the text is not in the DOM at all. The user's notes field is
+// separate and always visible. Open summaries are remembered per fight id so
+// a row re-render (every rating or notes save) does not collapse them.
+const expandedSummaries = new Set();
+const SUMMARY_LOCK_SVG = '<svg aria-hidden="true" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg>';
+const SUMMARY_CHEVRON_SVG = '<svg aria-hidden="true" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"></path></svg>';
+function summaryToggleHtml(fight, isRated, isFuture) {
+  if (!fight.summary || isFuture) return '';
+  if (!isRated) return `<span class="summary-locked" title="Rate this fight to read the summary">${SUMMARY_LOCK_SVG}Summary after rating</span>`;
+  const open = expandedSummaries.has(String(fight.id));
+  return `<button type="button" class="summary-toggle" id="summary-toggle-${fight.id}" aria-expanded="${open}" aria-controls="summary-${fight.id}" onclick="toggleFightSummary('${fight.id}')">Summary${SUMMARY_CHEVRON_SVG}</button>`;
+}
+function summaryBodyHtml(fight, isRated, isFuture) {
+  if (!fight.summary || isFuture || !isRated) return '';
+  const open = expandedSummaries.has(String(fight.id));
+  return `<div class="fight-row-summary" id="summary-${fight.id}"${open ? '' : ' hidden'}>${escHtml(fight.summary)}</div>`;
+}
+function toggleFightSummary(fightId) {
+  const key = String(fightId);
+  const open = !expandedSummaries.has(key);
+  if (open) expandedSummaries.add(key); else expandedSummaries.delete(key);
+  const body = document.getElementById('summary-' + fightId);
+  const btn = document.getElementById('summary-toggle-' + fightId);
+  if (body) body.hidden = !open;
+  if (btn) btn.setAttribute('aria-expanded', String(open));
+}
+
 function renderFightRow(fight, opts) {
   opts = opts || {};
   const rating = myRatings.find(r => r.fight_id === fight.id);
@@ -610,8 +642,10 @@ function renderFightRow(fight, opts) {
         ${fight.is_title ? '<span class="title-tag">TITLE BOUT</span>' : ''}
         <span class="fight-row-wc">${escHtml(fight.weight_class || '—')}</span>
         ${opts.showEvent && fight.event_name ? '<span class="submeta-sep">·</span><button class="nav-link" onclick="navToEvent(\''+fight.event_id+'\')">'+escHtml(fight.event_name)+'</button>'+(fight.event_date?'<span class="submeta-sep">·</span>'+formatEventDate(fight.event_date):'') : ''}
+        ${summaryToggleHtml(fight, isRated, isFuture) ? '<span class="submeta-sep">·</span>'+summaryToggleHtml(fight, isRated, isFuture) : ''}
         ${showResult && (bonusTagsHtml(fight.bonus_awards) || upsetTagHtml(fight)) ? '<span class="fight-row-bonuses">'+bonusTagsHtml(fight.bonus_awards)+upsetTagHtml(fight)+'</span>' : ''}
       </div>
+      ${summaryBodyHtml(fight, isRated, isFuture)}
       ${fight.notes ? '<div class="fight-row-notes-info">'+escHtml(fight.notes)+'</div>' : ''}
       ${!isFuture ? `<input class="fight-row-notes" id="notes-${fight.id}" type="text" placeholder="Notes…" value="${escHtml(notes)}"
         onblur="saveNotes('${fight.id}')">` : ''}
