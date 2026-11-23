@@ -1,66 +1,76 @@
-// Fight summaries on the fight row — a collapsed "Summary" toggle on the
-// sub-meta line, shown only once the viewer has rated the fight. Unrated rows
-// get a locked label and must not carry the summary text at all.
+// The row's detail panel — the arrow at the end of a fight row opens the
+// fight's summary plus the viewer's notes. The summary shows only once the
+// viewer has rated the fight; an unrated row must not carry the text at all.
+// The notes box is always present, because saves read its value.
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 const source = fs.readFileSync(require('node:path').join(__dirname, '../js/events.js'), 'utf8');
 const start = source.indexOf('const expandedSummaries');
-const end = source.indexOf('function renderFightRow');
+const end = source.indexOf('// Column headings for the fight table');
 const els = {};
-const el = () => ({ hidden: true, attrs: {}, setAttribute(k, v) { this.attrs[k] = v; } });
+const el = () => ({ hidden: true, attrs: {}, dataset: {}, setAttribute(k, v) { this.attrs[k] = v; } });
 const c = {
   escHtml: s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'),
   document: { getElementById: id => els[id] || null },
 };
 vm.createContext(c);
-vm.runInContext(source.slice(start, end) + '\nthis.expandedSummaries = expandedSummaries; this.summaryToggleHtml = summaryToggleHtml; this.summaryBodyHtml = summaryBodyHtml; this.toggleFightSummary = toggleFightSummary;', c);
+vm.runInContext(source.slice(start, end) + '\nthis.expandedSummaries = expandedSummaries; this.detailToggleHtml = detailToggleHtml; this.detailBodyHtml = detailBodyHtml; this.toggleFightDetail = toggleFightDetail;', c);
 
 const fight = { id: 'f1', summary: 'Harrison took <her> down & finished.' };
 
-// no summary, or an upcoming bout: nothing at all, rated or not
-assert.equal(c.summaryToggleHtml({ id: 'f1' }, true, false), '');
-assert.equal(c.summaryBodyHtml({ id: 'f1' }, true, false), '');
-assert.equal(c.summaryToggleHtml({ id: 'f1', summary: '' }, true, false), '');
-assert.equal(c.summaryToggleHtml(fight, true, true), '');
-assert.equal(c.summaryBodyHtml(fight, true, true), '');
+// an upcoming bout has nothing to open: no arrow, no panel
+assert.doesNotMatch(c.detailToggleHtml(fight, true, true, true), /<button/);
+assert.equal(c.detailBodyHtml(fight, true, true, 'x'), '');
 
-// unrated: a locked label, and the text is nowhere in the markup
-const locked = c.summaryToggleHtml(fight, false, false);
-assert.match(locked, /class="summary-locked"/);
-assert.match(locked, /Summary after rating/);
-assert.doesNotMatch(locked, /<button/);
-assert.doesNotMatch(locked, /Harrison/);
-assert.equal(c.summaryBodyHtml(fight, false, false), '');
+// no summary: the arrow opens notes only
+const plain = c.detailToggleHtml({ id: 'f1' }, true, false, false);
+assert.match(plain, /aria-label="Show notes"/);
+assert.doesNotMatch(plain, /fr-note-dot/);
+const plainBody = c.detailBodyHtml({ id: 'f1' }, true, false, '');
+assert.match(plainBody, /class="fr-detail no-summary" id="detail-f1" hidden>/);
+assert.doesNotMatch(plainBody, /fr-summary/);
+assert.match(plainBody, /<textarea class="fight-row-notes" id="notes-f1"/);
 
-// rated: a collapsed toggle plus the escaped text, hidden until opened
-const toggle = c.summaryToggleHtml(fight, true, false);
-assert.match(toggle, /<button type="button" class="summary-toggle" id="summary-toggle-f1" aria-expanded="false" aria-controls="summary-f1" onclick="toggleFightSummary\('f1'\)">Summary</);
-assert.equal(c.summaryBodyHtml(fight, true, false),
-  '<div class="fight-row-summary" id="summary-f1" hidden>Harrison took &lt;her&gt; down &amp; finished.</div>');
+// unrated: a locked line, and the text is nowhere in the markup; notes stay
+const lockedToggle = c.detailToggleHtml(fight, false, false, false);
+assert.match(lockedToggle, /aria-label="Show notes"/);
+assert.doesNotMatch(lockedToggle, /Harrison/);
+const lockedBody = c.detailBodyHtml(fight, false, false, 'Watch with <Dad>');
+assert.match(lockedBody, /Summary appears here once you rate the fight\./);
+assert.doesNotMatch(lockedBody, /Harrison/);
+assert.match(lockedBody, />Watch with &lt;Dad&gt;<\/textarea>/);
+
+// rated: a collapsed arrow plus the escaped text, hidden until opened
+const toggle = c.detailToggleHtml(fight, true, false, true);
+assert.match(toggle, /<button type="button" class="fr-expand" id="detail-toggle-f1" aria-expanded="false" aria-controls="detail-f1" aria-label="Show summary and notes\. You have a note on this fight\."/);
+assert.match(toggle, /onclick="toggleFightDetail\('f1'\)"/);
+assert.match(toggle, /fr-note-dot/); // the red dot marks an existing note
+const body = c.detailBodyHtml(fight, true, false, 'mine');
+assert.match(body, /^<div class="fr-detail" id="detail-f1" hidden><p class="fr-summary">Harrison took &lt;her&gt; down &amp; finished\.<\/p><textarea /);
+assert.match(body, /onblur="saveNotes\('f1'\)">mine<\/textarea><\/div>$/);
 
 // toggling opens it in place and is remembered, so a re-rendered row stays open
-els['summary-f1'] = el();
-els['summary-toggle-f1'] = el();
-c.toggleFightSummary('f1');
-assert.equal(els['summary-f1'].hidden, false);
-assert.equal(els['summary-toggle-f1'].attrs['aria-expanded'], 'true');
-assert.match(c.summaryToggleHtml(fight, true, false), /aria-expanded="true"/);
-assert.doesNotMatch(c.summaryBodyHtml(fight, true, false), / hidden>/);
-// numeric ids share the same remembered state as their string form
-assert.match(c.summaryToggleHtml({ ...fight, id: 'f1' }, true, false), /aria-expanded="true"/);
+els['detail-f1'] = el();
+els['detail-toggle-f1'] = Object.assign(el(), { dataset: { summary: 'true', note: 'false' } });
+c.toggleFightDetail('f1');
+assert.equal(els['detail-f1'].hidden, false);
+assert.equal(els['detail-toggle-f1'].attrs['aria-expanded'], 'true');
+assert.equal(els['detail-toggle-f1'].attrs['aria-label'], 'Hide summary and notes');
+assert.match(c.detailToggleHtml(fight, true, false, false), /aria-expanded="true"/);
+assert.doesNotMatch(c.detailBodyHtml(fight, true, false, ''), / hidden>/);
 
 // toggling again closes it; a missing row (navigated away) must not throw
-c.toggleFightSummary('f1');
-assert.equal(els['summary-f1'].hidden, true);
-assert.equal(els['summary-toggle-f1'].attrs['aria-expanded'], 'false');
-assert.match(c.summaryBodyHtml(fight, true, false), / hidden>/);
-c.toggleFightSummary('gone');
+c.toggleFightDetail('f1');
+assert.equal(els['detail-f1'].hidden, true);
+assert.equal(els['detail-toggle-f1'].attrs['aria-expanded'], 'false');
+assert.match(c.detailBodyHtml(fight, true, false, ''), / hidden>/);
+c.toggleFightDetail('gone');
 assert.equal(c.expandedSummaries.has('gone'), true);
 
-// an open summary never leaks into an unrated render of the same fight
-c.toggleFightSummary('f1');
-assert.equal(c.summaryBodyHtml(fight, false, false), '');
-assert.doesNotMatch(c.summaryToggleHtml(fight, false, false), /Harrison/);
+// an open panel never leaks the summary into an unrated render of the same fight
+c.toggleFightDetail('f1');
+assert.doesNotMatch(c.detailBodyHtml(fight, false, false, ''), /Harrison/);
+assert.doesNotMatch(c.detailToggleHtml(fight, false, false, false), /Harrison/);
 
 console.log('summary: ok');

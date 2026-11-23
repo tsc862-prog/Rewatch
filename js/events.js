@@ -392,13 +392,15 @@ function renderEventCard() {
         </div>
         <span class="event-progress" id="event-progress">${rated} / ${currentEventFights.length} rated</span>
       </div>
-      <div class="event-fights">
+      <div class="event-fights fight-table">
+        ${fightTableHeadHtml(false)}
         ${currentEventFights.map(f => renderFightRow(f)).join('')}
       </div>
     </div>`;
 
   el.style.display = 'block';
   document.getElementById('event-search-card').style.display = 'none';
+  loadFighterImages(currentEventFights);
 
   // Mirror of renderFighterCard: clear the fighter card's DOM so fight-row
   // element ids stay unique. showView re-renders it from currentFighter.
@@ -449,7 +451,7 @@ function bonusLabel(bonusAwards) {
   return String(bonusAwards || '').split(',').map(a => BONUS_LABEL[a.trim()]).filter(Boolean).join(' · ');
 }
 // One small tag per award (same family as TITLE BOUT / DEBUT), the full name in the
-// tooltip. Rendered in a .fight-row-bonuses group pushed to the right end of the sub-meta line.
+// tooltip. Rendered on the second line of the row's Result column.
 function bonusTagsHtml(bonusAwards) {
   return String(bonusAwards || '').split(',').map(a => a.trim()).filter(a => BONUS_LABEL[a])
     .map(a => `<span class="bonus-tag" title="${BONUS_LABEL[a]}">${a}</span>`).join('');
@@ -510,38 +512,94 @@ function upsetTagHtml(fight) {
   return `<span class="bonus-tag upset-tag" title="${escHtml(tip)}">UPSET</span>`;
 }
 
-// A fight's written summary (`summary` on fight_search: 2–4 sentences on how
-// the bout played out) sits behind a collapsed "Summary" toggle on the
-// sub-meta line. It gives the result away, so it is stricter than the result
-// gate: it needs the viewer's own star rating, even on rows whose result is
-// already shown. Until then the row carries a locked "Summary after rating"
-// label and the text is not in the DOM at all. The user's notes field is
-// separate and always visible. Open summaries are remembered per fight id so
-// a row re-render (every rating or notes save) does not collapse them.
+// ── Fighter headshots ────────────────────────────────────────────────────────
+// fight_search carries no photos, so the small round headshot beside each name
+// is filled in after the rows render: one fighters(id, image_url) lookup per
+// card, cached by fighter id for the session. The initials sit underneath —
+// fighters with no photo (plenty of regional ones) or a failed load just keep
+// them. Sherdog 403s hotlinked images sent with a Referer, hence no-referrer.
+const fighterImageCache = new Map(); // String(fighter id) → image url | null
+function avatarImgHtml(url) {
+  return `<img src="${escHtml(url)}" alt="" referrerpolicy="no-referrer" loading="lazy" onerror="this.remove()">`;
+}
+function fighterAvatarHtml(id, name) {
+  const url = fighterImageCache.get(String(id));
+  return `<span class="fr-avatar" data-fid="${escHtml(String(id))}" aria-hidden="true">${escHtml(fighterInitials(name))}${url ? avatarImgHtml(url) : ''}</span>`;
+}
+async function loadFighterImages(fights) {
+  const ids = [...new Set((fights || []).flatMap(f => [f.fighter1_id, f.fighter2_id])
+    .filter(id => id != null).map(String))].filter(id => !fighterImageCache.has(id));
+  if (!ids.length) return;
+  ids.forEach(id => fighterImageCache.set(id, null)); // never ask twice
+  for (let i = 0; i < ids.length; i += 150) {
+    const { data, error } = await sb.from('fighters').select('id, image_url').in('id', ids.slice(i, i + 150));
+    if (error || !data) continue;
+    data.forEach(r => { if (r.image_url) fighterImageCache.set(String(r.id), r.image_url); });
+  }
+  document.querySelectorAll('.fr-avatar[data-fid]').forEach(el => {
+    const url = fighterImageCache.get(el.dataset.fid);
+    if (url && !el.querySelector('img')) el.insertAdjacentHTML('beforeend', avatarImgHtml(url));
+  });
+}
+
+// ── Row detail: summary + notes ──────────────────────────────────────────────
+// The arrow at the end of a row opens one panel holding the fight's written
+// summary (`summary` on fight_search: 2–4 sentences on how the bout played
+// out) and the viewer's own notes. The summary gives the result away, so it
+// is stricter than the result gate: it needs the viewer's own star rating,
+// even on rows whose result is already shown. Until then the panel says so
+// and the text is not in the DOM at all. The notes box is always in the DOM
+// (hidden while the panel is closed) because saves read its value. A red dot
+// on the arrow marks a fight the viewer has a note on. Open panels are
+// remembered per fight id so a row re-render (every rating or notes save)
+// does not collapse them.
 const expandedSummaries = new Set();
-const SUMMARY_LOCK_SVG = '<svg aria-hidden="true" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg>';
-const SUMMARY_CHEVRON_SVG = '<svg aria-hidden="true" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"></path></svg>';
-function summaryToggleHtml(fight, isRated, isFuture) {
-  if (!fight.summary || isFuture) return '';
-  if (!isRated) return `<span class="summary-locked" title="Rate this fight to read the summary">${SUMMARY_LOCK_SVG}Summary after rating</span>`;
-  const open = expandedSummaries.has(String(fight.id));
-  return `<button type="button" class="summary-toggle" id="summary-toggle-${fight.id}" aria-expanded="${open}" aria-controls="summary-${fight.id}" onclick="toggleFightSummary('${fight.id}')">Summary${SUMMARY_CHEVRON_SVG}</button>`;
+const SUMMARY_LOCK_SVG = '<svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg>';
+const SUMMARY_CHEVRON_SVG = '<svg aria-hidden="true" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"></path></svg>';
+function detailToggleLabel(open, hasSummary, hasNote) {
+  return `${open ? 'Hide' : 'Show'} ${hasSummary ? 'summary and notes' : 'notes'}${hasNote ? '. You have a note on this fight.' : ''}`;
 }
-function summaryBodyHtml(fight, isRated, isFuture) {
-  if (!fight.summary || isFuture || !isRated) return '';
+function detailToggleHtml(fight, isRated, isFuture, hasNote) {
+  if (isFuture) return '<span></span>';
   const open = expandedSummaries.has(String(fight.id));
-  return `<div class="fight-row-summary" id="summary-${fight.id}"${open ? '' : ' hidden'}>${escHtml(fight.summary)}</div>`;
+  const hasSummary = !!fight.summary && isRated;
+  const label = detailToggleLabel(open, hasSummary, hasNote);
+  return `<button type="button" class="fr-expand" id="detail-toggle-${fight.id}" aria-expanded="${open}" aria-controls="detail-${fight.id}" aria-label="${label}" title="${label}" data-summary="${hasSummary}" data-note="${!!hasNote}" onclick="toggleFightDetail('${fight.id}')">${SUMMARY_CHEVRON_SVG}${hasNote ? '<span class="fr-note-dot" aria-hidden="true"></span>' : ''}</button>`;
 }
-function toggleFightSummary(fightId) {
+function detailBodyHtml(fight, isRated, isFuture, notes) {
+  if (isFuture) return '';
+  const open = expandedSummaries.has(String(fight.id));
+  const summary = !fight.summary ? ''
+    : isRated ? `<p class="fr-summary">${escHtml(fight.summary)}</p>`
+    : `<p class="fr-summary fr-summary-locked">${SUMMARY_LOCK_SVG}Summary appears here once you rate the fight.</p>`;
+  return `<div class="fr-detail${summary ? '' : ' no-summary'}" id="detail-${fight.id}"${open ? '' : ' hidden'}>${summary}<textarea class="fight-row-notes" id="notes-${fight.id}" rows="2" aria-label="Your notes on this fight" placeholder="Notes…" onblur="saveNotes('${fight.id}')">${escHtml(notes || '')}</textarea></div>`;
+}
+function toggleFightDetail(fightId) {
   const key = String(fightId);
   const open = !expandedSummaries.has(key);
   if (open) expandedSummaries.add(key); else expandedSummaries.delete(key);
-  const body = document.getElementById('summary-' + fightId);
-  const btn = document.getElementById('summary-toggle-' + fightId);
+  const body = document.getElementById('detail-' + fightId);
+  const btn = document.getElementById('detail-toggle-' + fightId);
   if (body) body.hidden = !open;
-  if (btn) btn.setAttribute('aria-expanded', String(open));
+  if (btn) {
+    const label = detailToggleLabel(open, btn.dataset?.summary === 'true', btn.dataset?.note === 'true');
+    btn.setAttribute('aria-expanded', String(open));
+    btn.setAttribute('aria-label', label);
+    btn.setAttribute('title', label);
+  }
 }
 
+// Column headings for the fight table. The event card numbers the bouts and
+// shows the weight class; the fighter card leads with the date and names the
+// event instead. The grid template lives in CSS (.fight-table / .by-fighter).
+function fightTableHeadHtml(byFighter) {
+  const cols = byFighter
+    ? ['Date', '<span>Opponent</span><span>Line</span>', 'Event']
+    : ['#', '<span>Fighters</span><span>Line</span>', 'Weight'];
+  return `<div class="fr-head"><span>${cols[0]}</span><span class="fr-head-split">${cols[1]}</span><span>${cols[2]}</span><span>Your rating</span><span title="Other users' average, out of 5">Others</span><span>Result</span><span>Watch</span><span></span></div>`;
+}
+
+// One table row. Every fight gets the same row whatever its billing.
 function renderFightRow(fight, opts) {
   opts = opts || {};
   const rating = myRatings.find(r => r.fight_id === fight.id);
@@ -558,8 +616,7 @@ function renderFightRow(fight, opts) {
 
   // The fight's own VOD or, failing that, the event replay carried on the
   // fight_search row (fightWatchLinks). Either one is watchable, so either one
-  // hides the result until the fight is rated — on the fighter card too, which
-  // used to reveal results for fights that only had a full-event replay.
+  // hides the result until the fight is rated — on the fighter card too.
   // An event dated today is treated the same whether or not it has links yet:
   // the card is airing (or about to), so its results are spoilers until rated.
   // That also stops half-scraped rows from reading "Draw / NC" mid-show.
@@ -575,80 +632,76 @@ function renderFightRow(fight, opts) {
     (fight.fighter1_rank || fight.fighter2_rank)
       ? rankOrder(fight.fighter2_rank) < rankOrder(fight.fighter1_rank)
       : !!fight.id && (fight.id.charCodeAt(0) + fight.id.charCodeAt(fight.id.length - 1)) % 2 === 1);
-  const dF1 = swapOrder ? fight.fighter2_name : fight.fighter1_name;
-  const dF2 = swapOrder ? fight.fighter1_name : fight.fighter2_name;
-  const dF1id = swapOrder ? fight.fighter2_id : fight.fighter1_id;
-  const dF2id = swapOrder ? fight.fighter1_id : fight.fighter2_id;
-  const dF1rank = swapOrder ? fight.fighter2_rank : fight.fighter1_rank;
-  const dF2rank = swapOrder ? fight.fighter1_rank : fight.fighter2_rank;
-  const dF1debut = swapOrder ? fight.fighter2_is_debut : fight.fighter1_is_debut;
-  const dF2debut = swapOrder ? fight.fighter1_is_debut : fight.fighter2_is_debut;
-  const dF1odds = oddsHtml(swapOrder ? fight.fighter2_odds_close : fight.fighter1_odds_close,
-                           swapOrder ? fight.fighter2_odds_open : fight.fighter1_odds_open, isFuture);
-  const dF2odds = oddsHtml(swapOrder ? fight.fighter1_odds_close : fight.fighter2_odds_close,
-                           swapOrder ? fight.fighter1_odds_open : fight.fighter2_odds_open, isFuture);
-  const f1rec = getFighterRecord(dF1, fight.event_date);
-  const f2rec = getFighterRecord(dF2, fight.event_date);
+  const side = n => ({
+    id: fight[`fighter${n}_id`], name: fight[`fighter${n}_name`], rank: fight[`fighter${n}_rank`],
+    debut: fight[`fighter${n}_is_debut`],
+    odds: oddsHtml(fight[`fighter${n}_odds_close`], fight[`fighter${n}_odds_open`], isFuture) });
+  const sides = swapOrder ? [side(2), side(1)] : [side(1), side(2)];
 
-  // On the fighter card every row would start with the profile fighter's own
-  // name, pushing the opponent — the only informative name — into the
-  // ellipsis. When the perspective matches one side, render "vs Opponent"
-  // instead. A name mismatch (data quirk) falls back to the full matchup.
-  const opp = opts.perspective === fight.fighter1_name
-    ? { name: fight.fighter2_name, id: fight.fighter2_id, rank: fight.fighter2_rank, debut: fight.fighter2_is_debut,
-        odds: oddsHtml(fight.fighter2_odds_close, fight.fighter2_odds_open, isFuture) }
-    : opts.perspective === fight.fighter2_name
-      ? { name: fight.fighter1_name, id: fight.fighter1_id, rank: fight.fighter1_rank, debut: fight.fighter1_is_debut,
-          odds: oddsHtml(fight.fighter1_odds_close, fight.fighter1_odds_open, isFuture) }
-      : null;
-  const oppRec = opp ? getFighterRecord(opp.name, fight.event_date) : null;
+  // On the fighter card every row would repeat the profile fighter's own name,
+  // so when the perspective matches one side only the opponent is listed. A
+  // name mismatch (data quirk) falls back to the full matchup.
+  const opp = opts.perspective === fight.fighter1_name ? side(2)
+    : opts.perspective === fight.fighter2_name ? side(1) : null;
 
-  const resultHtml = showResult
-    ? `<div class="fight-row-result revealed${opp && fight.winner_name ? (fight.winner_name === opts.perspective ? ' result-win' : ' result-loss') : ''}">
-        ${fight.winner_name
-          ? (opp
-              ? (fight.winner_name === opts.perspective ? '<span><strong>Win</strong></span>' : '<span><strong>Loss</strong></span>')
-              : `<span><strong>W:</strong> ${escHtml(fight.winner_name)}</span>`)
-          : '<span>Draw / NC</span>'}
-        ${fight.method ? `<span>${escHtml(fight.method)}</span>` : ''}
-        ${fight.round ? `<span>R${fight.round}${fight.time ? ' · '+fight.time : ''}</span>` : ''}
-        ${fight.details && !fight.details.includes('|') ? `<span class="fight-details">${escHtml(fight.details)}</span>` : ''}
-      </div>`
-    : `<div class="fight-row-result spoiler">Rate to reveal result</div>`;
+  const isWinner = f => fight.winner_id != null
+    ? String(fight.winner_id) === String(f.id)
+    : !!fight.winner_name && fight.winner_name === f.name;
+  const rankSlot = rank => {
+    const r = rank ? String(rank).trim() : '';
+    if (!r) return '<span class="fr-rank"></span>';
+    return r.toUpperCase() === 'C'
+      ? '<span class="fr-rank rank-champ" title="Champion">C</span>'
+      : `<span class="fr-rank" title="Ranked #${escHtml(r)}">${escHtml(r)}</span>`;
+  };
+  // In the full matchup the winner is bold with a tick and the loser muted;
+  // the fighter card says Win / Loss in the result column instead.
+  const fighterLine = (f, marked) => {
+    const rec = getFighterRecord(f.name, fight.event_date);
+    const decided = marked && showResult && !!fight.winner_name;
+    const won = decided && isWinner(f);
+    return `<div class="fr-fighter${won ? ' is-winner' : ''}${decided && !won ? ' is-loser' : ''}"><span class="fr-name">${rankSlot(f.rank)}${fighterAvatarHtml(f.id, f.name)}<button class="nav-link" onclick="navToFighter('${f.id}','${(f.name||'').replace(/'/g,"\\'")}')">${escHtml(f.name)}</button>${won ? ' <svg class="fr-tick" role="img" aria-label="Winner" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"></path></svg>' : ''}${f.debut ? ' <span class="debut-tag">DEBUT</span>' : ''}${rec ? ' <span class="fighter-record">('+rec+')</span>' : ''}</span>${f.odds}</div>`;
+  };
 
-  // Win/loss coloring is relative to a named fighter and only wanted on the
-  // fighter card — keying it off the currentFighter global colored event-card
-  // rows against whichever fighter was viewed last
-  let wlClass = '';
-  if (showResult && opts.perspective) {
-    wlClass = !fight.winner_name ? 'fight-draw'
-      : fight.winner_name === opts.perspective ? 'fight-win' : 'fight-loss';
+  // Billing folded into one quiet line: TITLE first, then the card position.
+  const flags = [fight.is_title ? 'Title' : '', fight.fight_position_type || ''].filter(Boolean).join(' · ');
+  const flagsHtml = flags ? `<span class="fr-flags${fight.is_title ? ' is-title' : ''}">${escHtml(flags)}</span>` : '';
+  const weight = escHtml(fight.weight_class || '—');
+
+  const tags = showResult ? bonusTagsHtml(fight.bonus_awards) + upsetTagHtml(fight) : '';
+  let resultHtml = '';
+  if (showResult) {
+    const chip = !opp ? ''
+      : !fight.winner_name ? '<span class="fr-wl is-draw">Draw</span>'
+      : fight.winner_name === opts.perspective ? '<span class="fr-wl is-win">Win</span>' : '<span class="fr-wl is-loss">Loss</span>';
+    const top = [!fight.winner_name && !opp ? 'Draw / NC' : '', fight.method ? escHtml(fight.method) : ''].filter(Boolean).join(' · ');
+    const when = fight.round ? `<span>R${fight.round}${fight.time ? ' · '+fight.time : ''}</span>` : '';
+    const details = fight.details && !fight.details.includes('|') ? `<span class="fight-details">${escHtml(fight.details)}</span>` : '';
+    resultHtml = `<span class="fr-result-top">${chip}${top}</span>${when || details || tags ? `<span class="fr-result-sub">${when}${details}${tags}</span>` : ''}`;
+  } else if (!isFuture) {
+    resultHtml = '<span class="fr-spoiler">Rate to reveal</span>';
   }
 
   return `
-    <div class="fight-row ${isRated ? 'rated' : ''} ${wlClass}" id="fight-row-${fight.id}">
-      <div class="fight-row-single">
-        <div class="fight-row-matchup">${opp
-          ? `<span class="vs-prefix">vs</span> ${rankTag(opp.rank)}<button class="nav-link" onclick="navToFighter('${opp.id}','${(opp.name||'').replace(/'/g,"\\'")}')">${escHtml(opp.name)}</button>${opp.debut ? ' <span class="debut-tag">DEBUT</span>' : ''}${oppRec ? ' <span class="fighter-record">('+oppRec+')</span>' : ''}${opp.odds ? ' '+opp.odds : ''}`
-          : `${rankTag(dF1rank)}<button class="nav-link" onclick="navToFighter('${dF1id}','${(dF1||'').replace(/'/g,"\\'")}')">${escHtml(dF1)}</button>${dF1debut ? ' <span class="debut-tag">DEBUT</span>' : ''}${f1rec ? ' <span class="fighter-record">('+f1rec+')</span>' : ''}${dF1odds ? ' '+dF1odds : ''} vs ${rankTag(dF2rank)}<button class="nav-link" onclick="navToFighter('${dF2id}','${(dF2||'').replace(/'/g,"\\'")}')">${escHtml(dF2)}</button>${dF2debut ? ' <span class="debut-tag">DEBUT</span>' : ''}${f2rec ? ' <span class="fighter-record">('+f2rec+')</span>' : ''}${dF2odds ? ' '+dF2odds : ''}`}</div>
+    <div class="fight-row${isRated ? ' rated' : ''}" id="fight-row-${fight.id}">
+      <div class="fr-main">
+        ${opp
+          ? `<span class="fr-date">${fight.event_date ? formatEventDate(fight.event_date) : ''}</span>`
+          : `<span class="fr-num">${fight.fight_position != null ? fight.fight_position : ''}</span>`}
+        <div class="fr-fighters">${opp ? fighterLine(opp, false) : fighterLine(sides[0], true) + fighterLine(sides[1], true)}</div>
+        ${opts.showEvent
+          ? `<div class="fr-weight">${fight.event_name ? '<button class="nav-link" onclick="navToEvent(\''+fight.event_id+'\')">'+escHtml(fight.event_name)+'</button>' : ''}<span class="fr-flags${fight.is_title ? ' is-title' : ''}">${weight}${fight.is_title ? ' · Title' : ''}</span></div>`
+          : `<div class="fr-weight"><span>${weight}</span>${flagsHtml}</div>`}
         ${isFuture
           ? '<span class="upcoming-tag">Upcoming</span>'
-          : `<div class="fight-row-stars" id="stars-${fight.id}" onmouseleave="hoverFightStars('${fight.id}',0)">${buildClickableStars(fight.id, currentVal, 17)}</div>${showResult ? crowdScoreHtml(fight) : ''}
-             <div id="result-${fight.id}" class="fight-row-result-wrap">${resultHtml}</div>`}
+          : `<div class="fight-row-stars" id="stars-${fight.id}" onmouseleave="hoverFightStars('${fight.id}',0)">${buildClickableStars(fight.id, currentVal, 17)}</div>`}
+        <span class="fr-others">${showResult ? (crowdScoreHtml(fight) || '<span class="fr-none">–</span>') : ''}</span>
+        <div id="result-${fight.id}" class="fr-result">${resultHtml}</div>
         <div class="watch-icons">${watchLinks.map(watchIconHtml).join('')}</div>
+        ${detailToggleHtml(fight, isRated, isFuture, !!notes)}
       </div>
-      <div class="fight-row-submeta">
-        ${fight.fight_position_type ? '<span class="pos-type-tag pos-'+slugPosType(fight.fight_position_type)+'">'+escHtml(fight.fight_position_type)+'</span>' : ''}
-        ${fight.is_title ? '<span class="title-tag">TITLE BOUT</span>' : ''}
-        <span class="fight-row-wc">${escHtml(fight.weight_class || '—')}</span>
-        ${opts.showEvent && fight.event_name ? '<span class="submeta-sep">·</span><button class="nav-link" onclick="navToEvent(\''+fight.event_id+'\')">'+escHtml(fight.event_name)+'</button>'+(fight.event_date?'<span class="submeta-sep">·</span>'+formatEventDate(fight.event_date):'') : ''}
-        ${summaryToggleHtml(fight, isRated, isFuture) ? '<span class="submeta-sep">·</span>'+summaryToggleHtml(fight, isRated, isFuture) : ''}
-        ${showResult && (bonusTagsHtml(fight.bonus_awards) || upsetTagHtml(fight)) ? '<span class="fight-row-bonuses">'+bonusTagsHtml(fight.bonus_awards)+upsetTagHtml(fight)+'</span>' : ''}
-      </div>
-      ${summaryBodyHtml(fight, isRated, isFuture)}
       ${fight.notes ? '<div class="fight-row-notes-info">'+escHtml(fight.notes)+'</div>' : ''}
-      ${!isFuture ? `<input class="fight-row-notes" id="notes-${fight.id}" type="text" placeholder="Notes…" value="${escHtml(notes)}"
-        onblur="saveNotes('${fight.id}')">` : ''}
+      ${detailBodyHtml(fight, isRated, isFuture, notes)}
     </div>`;
 }
 

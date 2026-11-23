@@ -255,32 +255,36 @@ function renderFighterCard() {
 
   el.innerHTML = `
     <div class="card" style="margin-bottom:0">
-      <div class="fighter-page-grid">
-        <aside class="fighter-side">
-          <button class="btn btn-outline btn-sm" onclick="closeFighterCard()">← ${navReturnContext && navReturnContext.type === 'event' ? escHtml(navReturnContext.data.name) : 'Back'}</button>
+      <div class="fighter-head">
+        <button class="btn btn-outline btn-sm" onclick="closeFighterCard()">← ${navReturnContext && navReturnContext.type === 'event' ? escHtml(navReturnContext.data.name) : 'Back'}</button>
+        <div class="fighter-head-main">
           ${renderFighterPhoto()}
-          <span class="event-title">${escHtml(currentFighter.name)}</span>
-          ${renderFighterBio()}
-          <div class="event-meta">
-            ${fighterCareerBits().map(b => `<span>${escHtml(b)}</span>`).join('')}
-            <a class="sherdog-link" href="${sherdogFighterUrl(currentFighter.id)}" target="_blank" rel="noopener noreferrer">Sherdog ↗</a>
+          <div class="fighter-head-info">
+            <span class="event-title">${escHtml(currentFighter.name)}</span>
+            ${renderFighterBio()}
+            <div class="event-meta">
+              ${fighterCareerBits().map(b => `<span>${escHtml(b)}</span>`).join('')}
+              <a class="sherdog-link" href="${sherdogFighterUrl(currentFighter.id)}" target="_blank" rel="noopener noreferrer">Sherdog ↗</a>
+            </div>
+            ${renderFighterOrgs()}
           </div>
-          ${renderFighterOrgs()}
-          <span class="event-progress" id="fighter-progress">${rated} / ${currentFighterFights.length} rated</span>
-          ${statsStrip}
-        </aside>
-        <div class="event-fights">
-          ${upcoming.length ? `<div class="fights-subhead">Upcoming</div>${upcoming.map(row).join('')}` : ''}
-          ${upcoming.length && past.length ? '<div class="fights-subhead">Fight History</div>' : ''}
-          ${past.length
-            ? past.map(row).join('')
-            : upcoming.length ? '' : '<div class="empty">No fights found for this fighter.</div>'}
+          <div class="fighter-head-stats">
+            <span class="event-progress" id="fighter-progress">${rated} / ${currentFighterFights.length} rated</span>
+            ${statsStrip}
+          </div>
         </div>
       </div>
+      ${currentFighterFights.length ? `<div class="event-fights fight-table by-fighter">
+        ${fightTableHeadHtml(true)}
+        ${upcoming.length ? `<div class="fights-subhead">Upcoming</div>${upcoming.map(row).join('')}` : ''}
+        ${upcoming.length && past.length ? '<div class="fights-subhead">Fight History</div>' : ''}
+        ${past.map(row).join('')}
+      </div>` : '<div class="empty">No fights found for this fighter.</div>'}
     </div>`;
 
   el.style.display = 'block';
   document.getElementById('fighter-search-card').style.display = 'none';
+  loadFighterImages(currentFighterFights);
 
   // Clear the event card's DOM — both cards give fight rows per-fight element
   // ids, and a duplicate id would hijack star/notes updates for shared fights.
