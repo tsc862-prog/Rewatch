@@ -400,7 +400,6 @@ function renderEventCard() {
 
   el.style.display = 'block';
   document.getElementById('event-search-card').style.display = 'none';
-  loadFighterImages(currentEventFights);
 
   // Mirror of renderFighterCard: clear the fighter card's DOM so fight-row
   // element ids stay unique. showView re-renders it from currentFighter.
@@ -510,36 +509,6 @@ function upsetTagHtml(fight) {
   if (p == null) return '';
   const tip = `Upset — ${fight.winner_name || 'the winner'} closed as a ${fmtOdds(p)} underdog`;
   return `<span class="bonus-tag upset-tag" title="${escHtml(tip)}">UPSET</span>`;
-}
-
-// ── Fighter headshots ────────────────────────────────────────────────────────
-// fight_search carries no photos, so the small round headshot beside each name
-// is filled in after the rows render: one fighters(id, image_url) lookup per
-// card, cached by fighter id for the session. The initials sit underneath —
-// fighters with no photo (plenty of regional ones) or a failed load just keep
-// them. Sherdog 403s hotlinked images sent with a Referer, hence no-referrer.
-const fighterImageCache = new Map(); // String(fighter id) → image url | null
-function avatarImgHtml(url) {
-  return `<img src="${escHtml(url)}" alt="" referrerpolicy="no-referrer" loading="lazy" onerror="this.remove()">`;
-}
-function fighterAvatarHtml(id, name) {
-  const url = fighterImageCache.get(String(id));
-  return `<span class="fr-avatar" data-fid="${escHtml(String(id))}" aria-hidden="true">${escHtml(fighterInitials(name))}${url ? avatarImgHtml(url) : ''}</span>`;
-}
-async function loadFighterImages(fights) {
-  const ids = [...new Set((fights || []).flatMap(f => [f.fighter1_id, f.fighter2_id])
-    .filter(id => id != null).map(String))].filter(id => !fighterImageCache.has(id));
-  if (!ids.length) return;
-  ids.forEach(id => fighterImageCache.set(id, null)); // never ask twice
-  for (let i = 0; i < ids.length; i += 150) {
-    const { data, error } = await sb.from('fighters').select('id, image_url').in('id', ids.slice(i, i + 150));
-    if (error || !data) continue;
-    data.forEach(r => { if (r.image_url) fighterImageCache.set(String(r.id), r.image_url); });
-  }
-  document.querySelectorAll('.fr-avatar[data-fid]').forEach(el => {
-    const url = fighterImageCache.get(el.dataset.fid);
-    if (url && !el.querySelector('img')) el.insertAdjacentHTML('beforeend', avatarImgHtml(url));
-  });
 }
 
 // ── Row detail: summary + notes ──────────────────────────────────────────────
@@ -660,7 +629,7 @@ function renderFightRow(fight, opts) {
     const rec = getFighterRecord(f.name, fight.event_date);
     const decided = marked && showResult && !!fight.winner_name;
     const won = decided && isWinner(f);
-    return `<div class="fr-fighter${won ? ' is-winner' : ''}${decided && !won ? ' is-loser' : ''}"><span class="fr-name">${rankSlot(f.rank)}${fighterAvatarHtml(f.id, f.name)}<button class="nav-link" onclick="navToFighter('${f.id}','${(f.name||'').replace(/'/g,"\\'")}')">${escHtml(f.name)}</button>${won ? ' <svg class="fr-tick" role="img" aria-label="Winner" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"></path></svg>' : ''}${f.debut ? ' <span class="debut-tag">DEBUT</span>' : ''}${rec ? ' <span class="fighter-record">('+rec+')</span>' : ''}</span>${f.odds}</div>`;
+    return `<div class="fr-fighter${won ? ' is-winner' : ''}${decided && !won ? ' is-loser' : ''}"><span class="fr-name">${rankSlot(f.rank)}<button class="nav-link" onclick="navToFighter('${f.id}','${(f.name||'').replace(/'/g,"\\'")}')">${escHtml(f.name)}</button>${won ? ' <svg class="fr-tick" role="img" aria-label="Winner" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"></path></svg>' : ''}${f.debut ? ' <span class="debut-tag">DEBUT</span>' : ''}${rec ? ' <span class="fighter-record">('+rec+')</span>' : ''}</span>${f.odds}</div>`;
   };
 
   // Billing folded into one quiet line: TITLE first, then the card position.
@@ -682,8 +651,16 @@ function renderFightRow(fight, opts) {
     resultHtml = '<span class="fr-spoiler">Rate to reveal</span>';
   }
 
+  // Row tint. On the event card a rated row is green. On the fighter card green
+  // would read as "won", so the tint follows that fighter's outcome instead
+  // (green win, red loss, amber draw) and only once the result is showing.
+  const tint = !opp ? (isRated ? ' rated' : '')
+    : !showResult ? ''
+    : !fight.winner_name ? ' fight-draw'
+    : fight.winner_name === opts.perspective ? ' fight-win' : ' fight-loss';
+
   return `
-    <div class="fight-row${isRated ? ' rated' : ''}" id="fight-row-${fight.id}">
+    <div class="fight-row${tint}" id="fight-row-${fight.id}">
       <div class="fr-main">
         ${opp
           ? `<span class="fr-date">${fight.event_date ? formatEventDate(fight.event_date) : ''}</span>`

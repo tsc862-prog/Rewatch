@@ -598,14 +598,16 @@ body.dark .rk-top.rk-champ .rk-top-lbl{color:#f0c040}
    same row. Columns: # (or date) · fighters + betting line · weight (or event)
    · your rating · others · result · watch · arrow that opens summary + notes.
    The column template is a variable so the header and every row share it. */
-.fight-table{--fr-cols:30px minmax(0,1fr) 150px 96px 46px 230px 84px 28px;--fr-indent:107px;border:1px solid #d9d6cf;border-radius:12px;overflow:hidden;background:white;font-variant-numeric:tabular-nums}
-.fight-table.by-fighter{--fr-cols:88px minmax(0,1fr) minmax(0,240px) 96px 46px 230px 84px 28px;--fr-indent:165px}
+.fight-table{--fr-cols:30px minmax(0,1fr) 150px 96px 46px 230px 84px 28px;--fr-indent:76px;border:1px solid #d9d6cf;border-radius:12px;overflow:hidden;background:white;font-variant-numeric:tabular-nums}
+.fight-table.by-fighter{--fr-cols:88px minmax(0,1fr) minmax(0,240px) 96px 46px 230px 84px 28px;--fr-indent:134px}
 .fr-head,.fr-main{display:grid;grid-template-columns:var(--fr-cols);column-gap:12px;align-items:center;padding:8px 14px}
 .fr-head{background:#f6f4f0;border-bottom:1px solid #d9d6cf;font-size:10px;font-weight:700;letter-spacing:0.7px;text-transform:uppercase;color:#55524b}
 .fr-head-split{display:flex;justify-content:space-between}
 .fight-row{border-bottom:1px solid #ebe8e2;font-size:12px;color:#1c1c1a}
 .fight-row:last-child{border-bottom:none}
-.fight-row.rated{background:#f7fcf4}
+.fight-row.rated,.fight-row.fight-win{background:#f7fcf4}
+.fight-row.fight-loss{background:#fdf5f4}
+.fight-row.fight-draw{background:#fdf9ec}
 .fr-num{font-size:13px;font-weight:700;color:#6b6860}
 .fr-date{color:#55524b;white-space:nowrap}
 .fr-fighters{display:flex;flex-direction:column;gap:3px;min-width:0;font-size:13px}
@@ -616,8 +618,6 @@ body.dark .rk-top.rk-champ .rk-top-lbl{color:#f0c040}
 .fr-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .fr-rank{display:inline-block;width:20px;font-size:10px;font-weight:700;color:#6b6860}
 .fr-rank.rank-champ{color:#854F0B;font-weight:800}
-.fr-avatar{position:relative;display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;margin-right:7px;vertical-align:middle;border-radius:50%;overflow:hidden;background:#dedbd4;color:#55524b;font-size:8px;font-weight:700;letter-spacing:0}
-.fr-avatar img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:top}
 .fr-tick{color:#2f6b12;vertical-align:-1px}
 .fight-table .odds-tag{font-size:13px;font-weight:400;color:#55524b;flex-shrink:0}
 .fr-fighter.is-loser .odds-tag{color:#6b6860}
@@ -655,18 +655,19 @@ body.dark .rk-top.rk-champ .rk-top-lbl{color:#f0c040}
 .fr-summary-locked{display:flex;align-items:center;gap:5px;font-size:12px;color:#6b6860}
 .fight-row-notes{display:block;flex:0 0 320px;min-width:0;resize:vertical;padding:7px 10px;border:1.5px solid #e4e1d9;border-radius:8px;font-size:12.5px;line-height:1.5;background:white;color:#1c1c1a;outline:none;font-family:inherit}
 .fr-detail.no-summary .fight-row-notes{flex:1}
-.fight-row.rated .fight-row-notes{border-color:#dfe8d8}
+.fight-row.rated .fight-row-notes,.fight-row.fight-win .fight-row-notes{border-color:#dfe8d8}
 .fight-row-notes:focus{border-color:#E24B4A;box-shadow:0 0 0 3px rgba(226,75,74,0.08)}
 .fights-subhead{padding:7px 14px;background:#f6f4f0;border-bottom:1px solid #ebe8e2;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:0.8px;color:#55524b}
 
 body.dark .fight-table{background:#1c1c1c;border-color:#383838}
 body.dark .fr-head{background:#232323;border-bottom-color:#383838;color:#b0b0b0}
 body.dark .fight-row{border-bottom-color:#2b2b2b;color:#e6e6e6}
-body.dark .fight-row.rated{background:#17230f}
+body.dark .fight-row.rated,body.dark .fight-row.fight-win{background:#17230f}
+body.dark .fight-row.fight-loss{background:#261513}
+body.dark .fight-row.fight-draw{background:#26210f}
 body.dark .fr-num,body.dark .fr-rank,body.dark .fr-flags,body.dark .fr-none,body.dark .fr-spoiler,body.dark .fr-fighter.is-loser,body.dark .fr-fighter.is-loser .odds-tag,body.dark .fight-table .fighter-record,body.dark .fight-table .upcoming-tag,body.dark .fight-table .fight-details,body.dark .fight-row-notes-info,body.dark .fr-summary-locked{color:#9a9a9a}
 body.dark .fr-date,body.dark .fight-table .odds-tag,body.dark .fr-result-sub{color:#b0b0b0}
 body.dark .fr-rank.rank-champ,body.dark .fr-flags.is-title{color:#f0c040}
-body.dark .fr-avatar{background:#2e2e2e;color:#b0b0b0}
 body.dark .fr-tick{color:#7fc45a}
 body.dark .fr-wl.is-win{background:#1f3a12;color:#7fc45a}
 body.dark .fr-wl.is-loss{background:#3a1a1a;color:#f08080}
@@ -676,7 +677,7 @@ body.dark .fr-expand:hover,body.dark .fr-expand[aria-expanded="true"]{background
 body.dark .fr-note-dot{background:#f08080}
 body.dark .fr-summary{color:#d0d0d0}
 body.dark .fight-row-notes{background:#1c1c1c;border-color:#383838;color:#e6e6e6}
-body.dark .fight-row.rated .fight-row-notes{border-color:#33402b}
+body.dark .fight-row.rated .fight-row-notes,body.dark .fight-row.fight-win .fight-row-notes{border-color:#33402b}
 body.dark .fight-row-notes:focus{border-color:#E24B4A;box-shadow:0 0 0 3px rgba(226,75,74,0.12)}
 body.dark .fights-subhead{background:#232323;border-bottom-color:#2b2b2b;color:#b0b0b0}
 body.dark .watch-icon.fightpass:not(.event-vod){background:#3d3d3d}
@@ -706,13 +707,20 @@ body.dark .watch-icon.fightpass:not(.event-vod){background:#3d3d3d}
 /* Photo, name and bio in a band across the top; the fight table runs full
    width underneath. */
 .fighter-head{display:flex;flex-direction:column;align-items:flex-start;gap:12px;margin-bottom:14px}
-.fighter-head-main{display:flex;align-items:center;gap:16px;width:100%;flex-wrap:wrap}
-.fighter-head .fighter-photo{width:88px;max-width:88px;border-radius:10px}
-.fighter-head .fighter-photo-initials{font-size:24px}
-.fighter-head-info{display:flex;flex-direction:column;align-items:flex-start;gap:7px;flex:1;min-width:220px}
-.fighter-head-info .event-title{font-size:24px;line-height:1.15}
+.fighter-head-main{display:flex;align-items:flex-start;gap:20px;width:100%;flex-wrap:wrap}
+.fighter-head .fighter-photo{width:150px;max-width:150px;border-radius:12px}
+.fighter-head .fighter-photo-initials{font-size:36px}
+.fighter-head-info{display:flex;flex-direction:column;align-items:flex-start;gap:10px;flex:1;min-width:220px}
+.fighter-head-info .event-title{font-size:28px;line-height:1.15}
 .fighter-head-info .fighter-bio,.fighter-head-info .event-meta,.fighter-head-info .fighter-orgs{margin-top:0}
 .fighter-head-stats{display:flex;flex-direction:column;align-items:flex-end;gap:8px}
 .fighter-head-stats .event-progress{align-self:flex-end}
 .fighter-head-stats .fighter-stats-strip{margin-bottom:0}
-@media(max-width:900px){.fighter-head-stats{align-items:stretch;width:100%}.fighter-head-stats .event-progress{align-self:flex-start}}
+.fighter-head-info .fighter-orgs{margin-top:0}
+.fighter-facts{display:flex;flex-wrap:wrap;gap:10px 26px}
+.ffact{display:flex;flex-direction:column;gap:2px}
+.ffact-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:#6b6860}
+.ffact-value{font-size:14px;font-weight:700;color:#1c1c1a}
+body.dark .ffact-label{color:#9a9a9a}
+body.dark .ffact-value{color:#e6e6e6}
+@media(max-width:900px){.fighter-head .fighter-photo{width:104px;max-width:104px}.fighter-head .fighter-photo-initials{font-size:28px}.fighter-head-stats{align-items:stretch;width:100%}.fighter-head-stats .event-progress{align-self:flex-start}}

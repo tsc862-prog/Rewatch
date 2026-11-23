@@ -189,25 +189,42 @@ function renderFighterBio() {
     `<span title="${escHtml(title)}">${html}</span>`).join('')}</div>`;
 }
 
-// Non-spoiler career context derived from the fight list itself — years active
-// and the division most fought in. No outcomes involved, so nothing is revealed
-// about fights the user hasn't rated yet.
-function fighterCareerBits() {
-  const bits  = [];
-  const years = currentFighterFights
-    .map(f => f.event_date ? parseInt(f.event_date.slice(0, 4), 10) : NaN)
-    .filter(y => !isNaN(y));
+// Non-spoiler career facts for the profile header, derived from the fight
+// list itself: how many fights are listed, years active, the division most
+// fought in, title fights, the last and next bout, and how many are left to
+// watch. No outcomes are involved, so nothing is revealed about fights the
+// user hasn't rated yet. → [label, innerHtml] pairs, innerHtml pre-escaped.
+function fighterCareerFacts() {
+  const facts = [];
+  const fights = currentFighterFights;
+  if (!fights.length) return facts;
+  const todayTs = new Date().setHours(0, 0, 0, 0);
+  const isUpcoming = f => f.event_date && eventDateTs(f.event_date) > todayTs;
+  const past = fights.filter(f => !isUpcoming(f));
+  const upcoming = fights.filter(isUpcoming).sort((a, b) => eventDateTs(a.event_date) - eventDateTs(b.event_date));
+
+  facts.push(['Fights listed', String(past.length)]);
+  const years = fights.map(f => f.event_date ? parseInt(f.event_date.slice(0, 4), 10) : NaN).filter(y => !isNaN(y));
   if (years.length) {
     const lo = Math.min(...years), hi = Math.max(...years);
-    bits.push(lo === hi ? `Active ${lo}` : `Active ${lo}–${hi}`);
+    facts.push(['Active', lo === hi ? String(lo) : `${lo}–${hi}`]);
   }
   const wcCount = {};
-  currentFighterFights.forEach(f => {
-    if (f.weight_class) wcCount[f.weight_class] = (wcCount[f.weight_class] || 0) + 1;
-  });
+  fights.forEach(f => { if (f.weight_class) wcCount[f.weight_class] = (wcCount[f.weight_class] || 0) + 1; });
   const wcs = Object.entries(wcCount).sort((a, b) => b[1] - a[1]);
-  if (wcs.length) bits.push(wcs.length > 1 ? `Mostly ${wcs[0][0]}` : wcs[0][0]);
-  return bits;
+  if (wcs.length) facts.push([wcs.length > 1 ? 'Main division' : 'Division', escHtml(wcs[0][0])]);
+  const titles = past.filter(f => f.is_title).length;
+  if (titles) facts.push(['Title fights', String(titles)]);
+  const last = past.find(f => f.event_date); // list is newest first
+  if (last) facts.push(['Last fought', formatEventDate(last.event_date)]);
+  const next = upcoming[0];
+  if (next) {
+    const oppName = next.fighter1_name === currentFighter.name ? next.fighter2_name : next.fighter1_name;
+    facts.push(['Next fight', `${formatEventDate(next.event_date)}${oppName ? ' vs ' + escHtml(oppName) : ''}`]);
+  }
+  const toWatch = past.filter(f => fightWatchLinks(f).length && !myRatings.some(r => r.fight_id === f.id && r.rating)).length;
+  facts.push(['Left to watch', String(toWatch)]);
+  return facts;
 }
 
 // Every org the fighter has fought for, most fights first, rendered with the
@@ -262,11 +279,12 @@ function renderFighterCard() {
           <div class="fighter-head-info">
             <span class="event-title">${escHtml(currentFighter.name)}</span>
             ${renderFighterBio()}
+            <div class="fighter-facts">${fighterCareerFacts().map(([label, html]) =>
+              `<div class="ffact"><span class="ffact-label">${label}</span><span class="ffact-value">${html}</span></div>`).join('')}</div>
             <div class="event-meta">
-              ${fighterCareerBits().map(b => `<span>${escHtml(b)}</span>`).join('')}
+              ${renderFighterOrgs()}
               <a class="sherdog-link" href="${sherdogFighterUrl(currentFighter.id)}" target="_blank" rel="noopener noreferrer">Sherdog ↗</a>
             </div>
-            ${renderFighterOrgs()}
           </div>
           <div class="fighter-head-stats">
             <span class="event-progress" id="fighter-progress">${rated} / ${currentFighterFights.length} rated</span>
@@ -284,7 +302,6 @@ function renderFighterCard() {
 
   el.style.display = 'block';
   document.getElementById('fighter-search-card').style.display = 'none';
-  loadFighterImages(currentFighterFights);
 
   // Clear the event card's DOM — both cards give fight rows per-fight element
   // ids, and a duplicate id would hijack star/notes updates for shared fights.
