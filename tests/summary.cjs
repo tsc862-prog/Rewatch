@@ -50,6 +50,16 @@ const body = c.detailBodyHtml(fight, true, false, 'mine');
 assert.match(body, /^<div class="fr-detail" id="detail-f1" hidden><p class="fr-summary">Harrison took &lt;her&gt; down &amp; finished\.<\/p><textarea /);
 assert.match(body, /onblur="saveNotes\('f1'\)">mine<\/textarea><\/div>$/);
 
+// pre-fight context (weight miss, late replacement) is not a spoiler: it shows
+// rated or not, above the summary, and on a fight with no summary too
+const ctx = { ...fight, context: 'Potieria weighed 188 lb, over the <185.5> limit.' };
+const ctxLocked = c.detailBodyHtml(ctx, false, false, '');
+assert.match(ctxLocked, /<div class="fr-detail-text"><p class="fr-context">Potieria weighed 188 lb, over the &lt;185\.5&gt; limit\.<\/p><p class="fr-summary fr-summary-locked">/);
+assert.doesNotMatch(ctxLocked, /Harrison/);
+assert.match(c.detailBodyHtml(ctx, true, false, ''), /<\/p><p class="fr-summary">Harrison/);
+const ctxOnly = c.detailBodyHtml({ id: 'f1', context: 'Late call.' }, false, false, '');
+assert.match(ctxOnly, /class="fr-detail" id="detail-f1" hidden><div class="fr-detail-text"><p class="fr-context">Late call\.<\/p><\/div><textarea/);
+
 // toggling opens it in place and is remembered, so a re-rendered row stays open
 els['detail-f1'] = el();
 els['detail-toggle-f1'] = Object.assign(el(), { dataset: { summary: 'true', note: 'false' } });
