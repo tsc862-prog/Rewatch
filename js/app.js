@@ -424,6 +424,39 @@ function rankOrder(rank) {
 
 function slugPosType(t) { return (t||'').toLowerCase().replace(/\s+/g,'-'); }
 
+// ── Weight classes across eras ───────────────────────────────────────────────
+// A class name has not always meant the same weight: a UFC "Middleweight" bout
+// in 1999 was under 200 lb, and a PRIDE "Middleweight" bout was 205 lb. So a
+// fight_search row can carry `weight_limit_lb`, the upper limit the bout was
+// actually fought at, beside the name it was billed under. Rows without it
+// (anything from 2012 on, and most of what Sherdog labels) are today's classes.
+const STANDARD_WEIGHT_LIMITS = {
+  'Atomweight': 105, 'Strawweight': 115, 'Flyweight': 125, 'Bantamweight': 135, 'Featherweight': 145,
+  'Lightweight': 155, 'Welterweight': 170, 'Middleweight': 185, 'Light Heavyweight': 205, 'Heavyweight': 265,
+};
+// The row's limit when it differs from today's limit for the billed name; else null.
+function oddWeightLimit(f) {
+  const lim = f && f.weight_limit_lb != null ? Number(f.weight_limit_lb) : NaN;
+  if (!f || !f.weight_class || isNaN(lim) || /catch\s*weight/i.test(f.weight_class)) return null;
+  const std = STANDARD_WEIGHT_LIMITS[f.weight_class.replace(/^Women's /, '')];
+  return std === lim ? null : lim;
+}
+// What to show: the billed name, plus the limit where it is not today's
+// ("Middleweight · 200 lb").
+function weightLabel(f) {
+  const lim = oddWeightLimit(f);
+  return (f && f.weight_class || '') + (lim != null ? ` · ${lim} lb` : '');
+}
+// What to group and count by: today's class nearest the limit, so a 1999 UFC
+// "Middleweight" (200 lb) counts with Light Heavyweight (205).
+function weightGroup(f) {
+  const lim = oddWeightLimit(f);
+  if (lim == null) return f && f.weight_class || '';
+  const nearest = Object.entries(STANDARD_WEIGHT_LIMITS)
+    .sort((a, b) => Math.abs(a[1] - lim) - Math.abs(b[1] - lim))[0][0];
+  return (/^Women's /.test(f.weight_class) ? "Women's " : '') + nearest;
+}
+
 function escHtml(s) {
   return (s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }

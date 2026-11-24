@@ -14,11 +14,15 @@ At widths up to 1,000px, navigation wraps below the header and matchups occupy t
 
 ## Checks
 
-Run `node tests/rating-saves.cjs` for delayed-save, overlapping-note, retry, and account-switch regression checks, `node tests/crowd-blend.cjs` for the crowd score and bonus tags, `node tests/odds.cjs` for the betting lines and the UPSET tag, and `node tests/summary.cjs` for the row's summary-and-notes panel and its rating gate.
+Run `node tests/rating-saves.cjs` for delayed-save, overlapping-note, retry, and account-switch regression checks, `node tests/crowd-blend.cjs` for the crowd score and bonus tags, `node tests/odds.cjs` for the betting lines and the UPSET tag, `node tests/summary.cjs` for the row's summary-and-notes panel and its rating gate, and `node tests/weight.cjs` for weight-class labels and grouping across eras.
 
 ## Fight table
 
 The event card and the fighter card list fights as one flat table, and every bout gets the same row whatever its billing. Columns: the bout number (the date on the fighter card), the fighters stacked with their betting line, the weight class with the billing underneath (the event name on the fighter card), your star rating, the other users' average, the result, the watch icons, and an arrow that opens the fight's summary and your notes. On the event card a rated row is tinted green and the winner is bold with a tick. On the fighter card green would read as a win, so the tint follows that fighter's outcome once the result is showing (green win, red loss, amber draw) and the result column leads with a Win / Loss chip. The column template is one CSS variable on `.fight-table` (`.by-fighter` for the fighter card) shared by the header and every row; below 900px the header goes and each row stacks into a small card. The fighter card's profile is a band across the top with the table full width below it: the photo, name and bio pills, a row of spoiler-free career facts from `fighterCareerFacts()` in `js/fighter.js` (fights listed, years active, main division, title fights, last and next fight, how many are left to watch), the organisations fought for, and the viewer's own stats. `renderFightRow()` and `fightTableHeadHtml()` in `js/events.js` hold the row.
+
+## Weight classes across eras
+
+A class name has not always meant the same weight: a UFC "Middleweight" bout in 1999 was under 200 lb. A `fight_search` row therefore carries the name the bout was billed under (`weight_class`) and, where the scraper knows it, the upper limit it was fought at (`weight_limit_lb`). `weightLabel()` in `js/app.js` shows the limit beside the name only when it differs from today's limit for that name ("Middleweight · 200 lb"), and `weightGroup()` maps the row to today's nearest class for anything that counts or groups by division (the fighter card's main division, the dashboard's weight-class bars), so that 1999 bout counts with Light Heavyweight. Rows with no limit are today's classes and read as before.
 
 ## Crowd score
 

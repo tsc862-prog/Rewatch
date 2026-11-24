@@ -210,7 +210,7 @@ function fighterCareerFacts() {
     facts.push(['Active', lo === hi ? String(lo) : `${lo}–${hi}`]);
   }
   const wcCount = {};
-  fights.forEach(f => { if (f.weight_class) wcCount[f.weight_class] = (wcCount[f.weight_class] || 0) + 1; });
+  fights.forEach(f => { const wc = weightGroup(f); if (wc) wcCount[wc] = (wcCount[wc] || 0) + 1; });
   const wcs = Object.entries(wcCount).sort((a, b) => b[1] - a[1]);
   if (wcs.length) facts.push([wcs.length > 1 ? 'Main division' : 'Division', escHtml(wcs[0][0])]);
   const titles = past.filter(f => f.is_title).length;

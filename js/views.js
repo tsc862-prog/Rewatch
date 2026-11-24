@@ -116,7 +116,7 @@ function renderTable() {
       <td title="${f.fighter2_name||''}"><button class="nav-link" onclick="navToFighter('${f.fighter2_id}','${(f.fighter2_name||'').replace(/'/g,"\\'")}')">${f.fighter2_name||''}</button>${f.winner_name===f.fighter2_name?' <span style="color:#E24B4A;font-size:10px;font-weight:700">W</span>':''}</td>
       <td title="${f.event_name||''}">${orgBadge(f.event_organization)}<button class="nav-link" onclick="navToEvent('${f.event_id}')">${f.event_name||'—'}</button></td>
       <td>${f.event_date||'—'}</td>
-      <td title="${f.weight_class||''}">${f.weight_class||'—'}${f.is_title?' <span class="title-tag">🏆</span>':''}</td>
+      <td title="${escHtml(weightLabel(f))}">${escHtml(weightLabel(f))||'—'}${f.is_title?' <span class="title-tag">🏆</span>':''}</td>
       <td>${methodBadge(f.method)}</td>
       <td>${f.round?'R'+f.round+(f.time?' '+f.time:''):f.time||'—'}</td>
       <td><span style="display:inline-flex;gap:1px;vertical-align:middle">${f.rating?buildStars(f.rating,13):'—'}</span></td>
@@ -329,7 +329,7 @@ function renderWcBars() {
   const stats = {};
   dashFilter(myRatings).forEach(f => {
     if (!f.weight_class) return;
-    const wc = normalizeWeightClass(f.weight_class);
+    const wc = normalizeWeightClass(weightGroup(f));
     if (!stats[wc]) stats[wc] = { count: 0, total: 0, rated: 0 };
     stats[wc].count++;
     if (f.rating) { stats[wc].total += f.rating; stats[wc].rated++; }
@@ -355,7 +355,7 @@ function fighterFightTime(f) {
 
 function renderLeaderboard() {
   const wc = (document.getElementById('leaderboard-wc')?.value) || '';
-  const source = dashFilter(wc ? myRatings.filter(f => f.weight_class === wc) : myRatings);
+  const source = dashFilter(wc ? myRatings.filter(f => normalizeWeightClass(weightGroup(f)) === wc) : myRatings);
 
   const map = {};
   source.forEach(f => {

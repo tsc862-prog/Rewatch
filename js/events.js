@@ -654,7 +654,7 @@ function renderFightRow(fight, opts) {
   // Billing folded into one quiet line: TITLE first, then the card position.
   const flags = [fight.is_title ? 'Title' : '', fight.fight_position_type || ''].filter(Boolean).join(' · ');
   const flagsHtml = flags ? `<span class="fr-flags${fight.is_title ? ' is-title' : ''}">${escHtml(flags)}</span>` : '';
-  const weight = escHtml(fight.weight_class || '—');
+  const weight = escHtml(weightLabel(fight) || '—');
 
   const tags = showResult ? bonusTagsHtml(fight.bonus_awards) + upsetTagHtml(fight) : '';
   let resultHtml = '';
